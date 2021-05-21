@@ -50,6 +50,9 @@ class BrainSegmentationDataset(Dataset):
 
         self.patients = sorted(volumes)
 
+        # Note: by default our dataset is large, but in case we we have a small dataset then we must look at number of patients
+        validation_cases = min(validation_cases + 1, len(self.patients)) - 1
+
         # select cases to subset
         if not subset == "all":
             random.seed(seed)

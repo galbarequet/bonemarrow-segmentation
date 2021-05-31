@@ -9,7 +9,6 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from dataset import BrainSegmentationDataset as Dataset
-from logger import Logger
 from loss import DiceLoss
 from transform import transforms
 from unet import UNet
@@ -18,7 +17,6 @@ from utils import log_images, dsc
 
 def main(args):
     makedirs(args)
-    snapshotargs(args)
     device = torch.device("cpu" if not torch.cuda.is_available() else args.device)
 
     loader_train, loader_valid = data_loaders(args)
@@ -32,7 +30,6 @@ def main(args):
 
     optimizer = optim.Adam(unet.parameters(), lr=args.lr)
 
-    logger = Logger(args.logs)
     loss_train = []
     loss_valid = []
 
@@ -72,15 +69,6 @@ def main(args):
                         validation_true.extend(
                             [y_true_np[s] for s in range(y_true_np.shape[0])]
                         )
-                        if (epoch % args.vis_freq == 0) or (epoch == args.epochs - 1):
-                            if i * args.batch_size < args.vis_images:
-                                tag = "image/{}".format(i)
-                                num_images = args.vis_images - i * args.batch_size
-                                logger.image_list_summary(
-                                    tag,
-                                    log_images(x, y_true, y_pred)[:num_images],
-                                    step,
-                                )
 
                     if phase == "train":
                         loss_train.append(loss.item())
@@ -88,11 +76,9 @@ def main(args):
                         optimizer.step()
 
                 if phase == "train" and (step + 1) % 10 == 0:
-                    log_loss_summary(logger, loss_train, step)
                     loss_train = []
 
             if phase == "valid":
-                log_loss_summary(logger, loss_valid, step, prefix="val_")
                 mean_dsc = np.mean(
                     dsc_per_volume(
                         validation_pred,
@@ -100,7 +86,6 @@ def main(args):
                         loader_valid.dataset.patient_slice_index,
                     )
                 )
-                logger.scalar_summary("val_dsc", mean_dsc, step)
                 if mean_dsc > best_validation_dsc:
                     best_validation_dsc = mean_dsc
                     torch.save(unet.state_dict(), os.path.join(args.weights, "unet.pt"))
@@ -162,19 +147,11 @@ def dsc_per_volume(validation_pred, validation_true, patient_slice_index):
     return dsc_list
 
 
-def log_loss_summary(logger, loss, step, prefix=""):
-    logger.scalar_summary(prefix + "loss", np.mean(loss), step)
 
 
 def makedirs(args):
     os.makedirs(args.weights, exist_ok=True)
-    os.makedirs(args.logs, exist_ok=True)
 
-
-def snapshotargs(args):
-    args_file = os.path.join(args.logs, "args.json")
-    with open(args_file, "w") as fp:
-        json.dump(vars(args), fp)
 
 
 if __name__ == "__main__":
@@ -212,22 +189,7 @@ if __name__ == "__main__":
         help="number of workers for data loading (default: 4)",
     )
     parser.add_argument(
-        "--vis-images",
-        type=int,
-        default=200,
-        help="number of visualization images to save in log file (default: 200)",
-    )
-    parser.add_argument(
-        "--vis-freq",
-        type=int,
-        default=10,
-        help="frequency of saving images to log file (default: 10)",
-    )
-    parser.add_argument(
         "--weights", type=str, default="./weights", help="folder to save weights"
-    )
-    parser.add_argument(
-        "--logs", type=str, default="./logs", help="folder to save logs"
     )
     parser.add_argument(
         "--images", type=str, default="./kaggle_3m", help="root folder with images"

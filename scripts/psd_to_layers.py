@@ -5,9 +5,6 @@ import numpy as np
 from PIL import Image
 from psd_tools import PSDImage
 
-BLACK_ARR_F = np.array([0.0,0.0,0.0])
-WHITE_ARR_F = np.array([1.0,1.0,1.0])
-
 def psd_to_layers(psd_dir, save_dir):
     raw_image_dir_path = os.path.join(save_dir, "raw_image")
     background_dir_path = os.path.join(save_dir, "background")
@@ -18,6 +15,7 @@ def psd_to_layers(psd_dir, save_dir):
     os.makedirs(fat_dir_path, exist_ok = True)
     os.makedirs(bones_dir_path, exist_ok = True)
     for filename in os.listdir(psd_dir):
+        print(filename)
         if filename.endswith(".psd"):
             psd_file = PSDImage.open(os.path.join(psd_dir, filename))
             layer_raw_image = psd_file[0]
@@ -59,7 +57,7 @@ def psd_to_layers(psd_dir, save_dir):
 
 
 #### Run ####
-# path_ps_dir = "./scripts/Temp" 
-# path_save_dir = "./scripts/Temp"
+path_ps_dir = "../Real_DATA/PS_files" 
+path_save_dir = "../Real_DATA" 
 
-# psd_to_layers(path_ps_dir, path_save_dir)
+psd_to_layers(path_ps_dir, path_save_dir)

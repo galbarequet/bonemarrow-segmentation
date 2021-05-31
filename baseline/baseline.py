@@ -1,12 +1,10 @@
-import argparse
 import os
+from sys import path
 import matplotlib.pyplot as plt
-from numpy.core.fromnumeric import shape
 import numpy as np
 from PIL import Image
-from skimage import filters, segmentation
+from skimage import filters
 from skimage.segmentation import flood
-from collections import Counter
 
 BACKGROUND = 0
 FAT = 1
@@ -21,7 +19,7 @@ WHITE_ARR = np.array([255,255,255]).astype(np.uint8)
 
 def main(image_dir, path_to_save, filename, show_segmentation_bool = False):
     path_to_image = os.path.join(image_dir, filename)
-    path_to_segment = os.path.join(path_to_save, filename[:-4]+'_segment.npy')
+    path_to_segment = os.path.join(path_to_save, filename[:-len("_raw_image.png")]+'_base_seg.npy')
     image = Image.open(path_to_image)
     image_data = np.asarray(image)
     segmented_image = segment_by_color(image_data)
@@ -174,11 +172,46 @@ def show_segmantation_from_file(path_to_arr):
     segmented_image = np.load(path_to_arr)
     show_segmentation(segmented_image)
 
+def dsc(y_pred, y_true):
+    return np.sum(y_pred[y_true == 1]) * 2.0 / (np.sum(y_pred) + np.sum(y_true))
+
+def evaluate_baseline(path_to_baseline_seg_arr_dir, path_data_dir):
+    dsc_bones = []
+    dsc_fat = []
+    name_list = os.listdir(os.path.join(path_data_dir, "PS_files"))
+    for filename in name_list:
+        if filename.endswith(".psd"):
+            real_filename = filename[ : -4]
+            fat_mask = np.array( Image.open(os.path.join(path_data_dir, "fat/" + real_filename + "_fat.png")) )
+            fat_mask = fat_mask / 255
+            bones_mask = np.array( Image.open(os.path.join(path_data_dir, "bones/" + real_filename + "_bones.png")) )
+            bones_mask = bones_mask / 255
+            baseline_seg_arr = np.load( os.path.join(path_to_baseline_seg_arr_dir, real_filename + "_base_seg.npy") )
+            fat_base_seg_mask = np.where( baseline_seg_arr == FAT, np.ones(baseline_seg_arr.shape), np.zeros(baseline_seg_arr.shape) )
+            bones_base_seg_mask = np.where( baseline_seg_arr == BONE, np.ones(baseline_seg_arr.shape), np.zeros(baseline_seg_arr.shape) )
+            dsc_fat.append( dsc(fat_mask, fat_base_seg_mask) )
+            dsc_bones.append( dsc(bones_mask, bones_base_seg_mask) )
+            print(filename + " - fat: " + str(dsc_fat[-1]) + " - bones: " + str(dsc_bones[-1]))
+        # print("finidhed " + filename)
+    max_dsc_fat = np.max(np.array(dsc_fat))
+    max_dsc_bones = np.max(np.array(dsc_bones))
+    min_dsc_fat = np.min(np.array(dsc_fat))
+    min_dsc_bones = np.min(np.array(dsc_bones))
+    mean_dsc_fat = np.mean(np.array(dsc_fat))
+    mean_dsc_bone = np.mean(np.array(dsc_bones))
+    print("mean dsc for fat = " + str(mean_dsc_fat))
+    print("max dsc for fat = " + str(max_dsc_fat))
+    print("min dsc for fat = " + str(min_dsc_fat))
+    print("mean dsc for bones = " + str(mean_dsc_bone))
+    print("max dsc for bones = " + str(max_dsc_bones))
+    print("min dsc for bones = " + str(min_dsc_bones))
 
 #### Run ####
-path_image_dir = "../../Real_DATA/background"
-path_segmentation_dir = "../Segmentation"
-path_seg_img_dir = "../Segmentation/Image"
+path_data_dir = "../Real_DATA"
+path_image_dir = "../Real_DATA/raw_image"
+path_segmentation_dir = "../Baseline_seg"
+path_seg_img_dir = "../Baseline_seg/Image"
 
-#segment_all_images(path_image_dir, path_segmentation_dir)
-save_photo_of_segmentation(path_segmentation_dir, path_seg_img_dir)
+# segment_all_images(path_image_dir, path_segmentation_dir)
+# save_photo_of_segmentation(path_segmentation_dir, path_seg_img_dir)
+evaluate_baseline(path_segmentation_dir, path_data_dir)

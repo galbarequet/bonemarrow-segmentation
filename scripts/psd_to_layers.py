@@ -32,15 +32,11 @@ def psd_to_layers(psd_dir, save_dir):
             raw_image_arr = layer_raw_image.numpy()
             raw_image.save(os.path.join(raw_image_dir_path, filename[:-4] + "_raw_image.png"))
 
-            # Creates a mask for the background (probably not needed)
-            no_background_arr = np.zeros(raw_image_arr.shape)
+            #creates a mask for the background (1 - not-background, 0 - background)
+            no_background_arr = np.zeros((raw_image_arr.shape[0], raw_image_arr.shape[1]))
             bb_no_background = layer_no_background.bbox
-            no_background_arr[bb_no_background[1]: bb_no_background[3] , bb_no_background[0] : bb_no_background[2]] = layer_no_background.numpy()[: , : , : 3]
-            background_arr = raw_image_arr - no_background_arr
-            for x in range(background_arr.shape[0]):
-                for y in range(background_arr.shape[1]):
-                    if (background_arr[x,y] != BLACK_ARR_F).all():
-                        background_arr[x,y] = WHITE_ARR_F
+            no_background_arr[bb_no_background[1]: bb_no_background[3] , bb_no_background[0] : bb_no_background[2]] = layer_no_background.numpy()[: , : , 3]
+            background_arr = np.where(no_background_arr < 0.1, np.zeros(no_background_arr.shape), np.ones(no_background_arr.shape))
             background = Image.fromarray((background_arr * 255).astype(np.uint8))
             background.save(os.path.join(background_dir_path, filename[:-4] + "_background.png"))
 
@@ -52,14 +48,13 @@ def psd_to_layers(psd_dir, save_dir):
             bones = Image.fromarray((bones_arr * 255).astype(np.uint8))
             bones.save(os.path.join(bones_dir_path, filename[:-4] + "_bones.png"))
 
-            #creates a mask for the fat (1 - bone, 0 - not bone)
+            #creates a mask for the fat (1 - fat, 0 - not fat)
             fat_arr = np.zeros((raw_image_arr.shape[0], raw_image_arr.shape[1]))
             bb_fat = layer_fat.bbox
             fat_arr[bb_fat[1]: bb_fat[3] , bb_fat[0] : bb_fat[2]] = np.array(layer_fat.mask.topil())
-            fat = Image.fromarray(fat_arr)
-            fat = fat.convert('L')
+            fat_arr = np.where(fat_arr < 0.1, np.zeros(fat_arr.shape), np.ones(fat_arr.shape))
+            fat = Image.fromarray((fat_arr * 255).astype(np.uint8))
             fat.save(os.path.join(fat_dir_path, filename[:-4] + "_fat.png"))
-
     return
 
 

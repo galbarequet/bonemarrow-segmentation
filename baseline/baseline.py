@@ -1,5 +1,4 @@
 import os
-from sys import path
 import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
@@ -191,18 +190,22 @@ def evaluate_baseline(path_to_baseline_seg_arr_dir, path_data_dir):
             bones_base_seg_mask = np.where( baseline_seg_arr == BONE, np.ones(baseline_seg_arr.shape), np.zeros(baseline_seg_arr.shape) )
             dsc_fat.append( dsc(fat_mask, fat_base_seg_mask) )
             dsc_bones.append( dsc(bones_mask, bones_base_seg_mask) )
-            print(filename + " - fat: " + str(dsc_fat[-1]) + " - bones: " + str(dsc_bones[-1]))
+            # print(filename + " - fat: " + str(dsc_fat[-1]) + " - bones: " + str(dsc_bones[-1]))
         # print("finidhed " + filename)
     max_dsc_fat = np.max(np.array(dsc_fat))
     max_dsc_bones = np.max(np.array(dsc_bones))
     min_dsc_fat = np.min(np.array(dsc_fat))
     min_dsc_bones = np.min(np.array(dsc_bones))
+    median_dsc_fat = np.median(np.array(dsc_fat))
+    median_dsc_bone = np.median(np.array(dsc_bones))
     mean_dsc_fat = np.mean(np.array(dsc_fat))
     mean_dsc_bone = np.mean(np.array(dsc_bones))
     print("mean dsc for fat = " + str(mean_dsc_fat))
+    print("median dsc for fat = " + str(median_dsc_fat))
     print("max dsc for fat = " + str(max_dsc_fat))
     print("min dsc for fat = " + str(min_dsc_fat))
     print("mean dsc for bones = " + str(mean_dsc_bone))
+    print("median dsc for bones = " + str(median_dsc_bone))
     print("max dsc for bones = " + str(max_dsc_bones))
     print("min dsc for bones = " + str(min_dsc_bones))
 

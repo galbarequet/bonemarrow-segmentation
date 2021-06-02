@@ -3,11 +3,14 @@ from skimage.transform import rescale, rotate
 from torchvision.transforms import Compose
 
 
-def transforms(scale=None, angle=None, flip_prob=None):
+def transforms(scale=None, angle=None, flip_prob=None, crop=None):
     transform_list = []
-
+    if crop is not None:
+        transform_list.append(RandomCrop(crop))
+    """
     if scale is not None:
         transform_list.append(Scale(scale))
+    """
     if angle is not None:
         transform_list.append(Rotate(angle))
     if flip_prob is not None:
@@ -89,5 +92,21 @@ class HorizontalFlip(object):
 
         image = np.fliplr(image).copy()
         mask = np.fliplr(mask).copy()
+
+        return image, mask
+
+class RandomCrop(object):
+
+    def __init__(self, size):
+        self.size = size
+
+    def __call__(self, sample):
+        image, mask = sample
+        height = image.shape[0]
+        width = image.shape[1]
+        start_height = np.random.randint(0, height - self.size)
+        start_width = np.random.randint(0, width - self.size)
+        image = image[start_height:start_height + self.size, start_width:start_width + self.size, :]
+        mask = mask[start_height:start_height + self.size, start_width:start_width + self.size, :]
 
         return image, mask

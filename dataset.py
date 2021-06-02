@@ -6,7 +6,7 @@ import torch
 from skimage.io import imread
 from torch.utils.data import Dataset
 
-from utils import crop_sample, pad_sample, resize_sample, normalize_volume
+from utils import crop_sample, pad_sample, resize_sample, normalize_volume, pad_to_multiple
 
 
 class BoneMarrowDataset(Dataset):
@@ -77,6 +77,7 @@ class BoneMarrowDataset(Dataset):
             validation_images = [self.images[i] for i in validation_indices]
             validation_masks = [self.masks[i] for i in validation_indices]
             if subset == "validation":
+                #self.images, self.mask = zip(*[pad_to_multiple((self.images[i], self.masks[i]), 32) for i in validation_indices])
                 self.images = validation_images
                 self.masks = validation_masks
             else:
@@ -108,9 +109,9 @@ class BoneMarrowDataset(Dataset):
             image, mask = self.transform([image, mask])
             #mask_tensor = self.transform(mask_tensor)
 
-            # fix dimensions (C, H, W)
-            image = image.transpose(2, 0, 1)
-            mask = mask.transpose(2, 0, 1)
+        # fix dimensions (C, H, W)
+        image = image.transpose(2, 0, 1)
+        mask = mask.transpose(2, 0, 1)
 
         image_tensor = torch.from_numpy(image.astype(np.float32))
         mask_tensor = torch.from_numpy(mask.astype(np.float32))

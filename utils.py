@@ -31,6 +31,21 @@ def crop_sample(x):
     )
 
 
+def pad_to_multiple(x, divisor):
+    volume, mask = x
+    a = volume.shape[0]
+    b = volume.shape[1]
+
+    new_a = a + (divisor - (a % divisor))
+    new_b = b + (divisor - (b % divisor))
+    diff_a = new_a - a
+    diff_b = new_b - b
+    padding = ((0, diff_a), (0, diff_b), (0,0))
+    volume = np.pad(volume, padding, mode='constant', constant_values=0)
+    mask = np.pad(mask, padding, mode='constant', constant_values=0)
+
+    return volume, mask
+
 def pad_sample(x):
     volume, mask = x
     a = volume.shape[1]

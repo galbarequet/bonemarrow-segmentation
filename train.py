@@ -1,22 +1,29 @@
+#TODO: delete this lol
+import os
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
+
 import argparse
 import json
 import os
 
 import numpy as np
 import torch
+from torch.nn import BCELoss
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from dataset import BrainSegmentationDataset as Dataset
-from loss import DiceLoss
-from transform import transforms
+from dataset import BoneMarrowDataset as Dataset
+from logger import Logger
+from transform import transforms, RandomCrop
 from unet import UNet
 from utils import log_images, dsc
 
 
+
 def main(args):
     makedirs(args)
+    snapshotargs(args)
     device = torch.device("cpu" if not torch.cuda.is_available() else args.device)
 
     loader_train, loader_valid = data_loaders(args)
@@ -25,11 +32,12 @@ def main(args):
     unet = UNet(in_channels=Dataset.in_channels, out_channels=Dataset.out_channels)
     unet.to(device)
 
-    dsc_loss = DiceLoss()
+    loss_func = BCELoss()
     best_validation_dsc = 0.0
 
     optimizer = optim.Adam(unet.parameters(), lr=args.lr)
 
+    logger = Logger(args.logs)
     loss_train = []
     loss_valid = []
 
@@ -57,7 +65,7 @@ def main(args):
                 with torch.set_grad_enabled(phase == "train"):
                     y_pred = unet(x)
 
-                    loss = dsc_loss(y_pred, y_true)
+                    loss = loss_func(y_pred, y_true)
 
                     if phase == "valid":
                         loss_valid.append(loss.item())
@@ -76,25 +84,30 @@ def main(args):
                         optimizer.step()
 
                 if phase == "train" and (step + 1) % 10 == 0:
+                    log_loss_summary(logger, loss_train, step)
                     loss_train = []
 
             if phase == "valid":
+                log_loss_summary(logger, loss_valid, step, prefix="val_")
                 mean_dsc = np.mean(
-                    dsc_per_volume(
+                    calculate_dsc(
                         validation_pred,
                         validation_true,
-                        loader_valid.dataset.patient_slice_index,
                     )
                 )
+                print('mean dsc in validation is {}'.format(mean_dsc))
+                logger.scalar_summary("val_dsc", mean_dsc, step)
                 if mean_dsc > best_validation_dsc:
                     best_validation_dsc = mean_dsc
                     torch.save(unet.state_dict(), os.path.join(args.weights, "unet.pt"))
                 loss_valid = []
+                torch.save(unet.state_dict(), os.path.join(args.weights, "latest_unet.pt"))
 
     print("Best validation mean DSC: {:4f}".format(best_validation_dsc))
 
 
 def data_loaders(args):
+    # TODO: change back to the original code
     dataset_train, dataset_valid = datasets(args)
 
     def worker_init(worker_id):
@@ -102,59 +115,62 @@ def data_loaders(args):
 
     loader_train = DataLoader(
         dataset_train,
-        batch_size=args.batch_size,
+        batch_size=3,
         shuffle=True,
-        drop_last=True,
-        num_workers=args.workers,
-        worker_init_fn=worker_init,
     )
     loader_valid = DataLoader(
         dataset_valid,
-        batch_size=args.batch_size,
+        batch_size=1,
         drop_last=False,
-        num_workers=args.workers,
-        worker_init_fn=worker_init,
     )
 
     return loader_train, loader_valid
 
 
 def datasets(args):
+    #TODO: change back to the original code
     train = Dataset(
         images_dir=args.images,
         subset="train",
         image_size=args.image_size,
-        transform=transforms(scale=args.aug_scale, angle=args.aug_angle, flip_prob=0.5),
+        transform=transforms(scale=args.aug_scale, angle=args.aug_angle, flip_prob=0.5, crop=512),
     )
     valid = Dataset(
         images_dir=args.images,
         subset="validation",
         image_size=args.image_size,
         random_sampling=False,
+        transform=RandomCrop(1024),
     )
     return train, valid
 
 
-def dsc_per_volume(validation_pred, validation_true, patient_slice_index):
+def calculate_dsc(validation_pred, validation_true):
     dsc_list = []
-    num_slices = np.bincount([p[0] for p in patient_slice_index])
-    index = 0
-    for p in range(len(num_slices)):
-        y_pred = np.array(validation_pred[index : index + num_slices[p]])
-        y_true = np.array(validation_true[index : index + num_slices[p]])
+    for i in range(len(validation_pred)):
+        y_pred = validation_pred[i]
+        y_true = validation_true[i]
         dsc_list.append(dsc(y_pred, y_true))
-        index += num_slices[p]
     return dsc_list
 
 
+def log_loss_summary(logger, loss, step, prefix=""):
+    logger.scalar_summary(prefix + "loss", np.mean(loss), step)
 
 
 def makedirs(args):
     os.makedirs(args.weights, exist_ok=True)
+    os.makedirs(args.logs, exist_ok=True)
 
+
+def snapshotargs(args):
+    args_file = os.path.join(args.logs, "args.json")
+    with open(args_file, "w") as fp:
+        json.dump(vars(args), fp)
 
 
 if __name__ == "__main__":
+    # TODO: change back to the original code
     parser = argparse.ArgumentParser(
         description="Training U-Net model for segmentation of brain MRI"
     )
@@ -167,7 +183,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--epochs",
         type=int,
-        default=100,
+        default=10000,
         help="number of epochs to train (default: 100)",
     )
     parser.add_argument(
@@ -189,10 +205,25 @@ if __name__ == "__main__":
         help="number of workers for data loading (default: 4)",
     )
     parser.add_argument(
+        "--vis-images",
+        type=int,
+        default=200,
+        help="number of visualization images to save in log file (default: 200)",
+    )
+    parser.add_argument(
+        "--vis-freq",
+        type=int,
+        default=10,
+        help="frequency of saving images to log file (default: 10)",
+    )
+    parser.add_argument(
         "--weights", type=str, default="./weights", help="folder to save weights"
     )
     parser.add_argument(
-        "--images", type=str, default="./kaggle_3m", help="root folder with images"
+        "--logs", type=str, default="./logs", help="folder to save logs"
+    )
+    parser.add_argument(
+        "--images", type=str, default="./data_samples", help="root folder with images"
     )
     parser.add_argument(
         "--image-size",

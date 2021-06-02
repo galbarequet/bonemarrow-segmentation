@@ -7,10 +7,8 @@ def transforms(scale=None, angle=None, flip_prob=None, crop=None):
     transform_list = []
     if crop is not None:
         transform_list.append(RandomCrop(crop))
-    """
     if scale is not None:
         transform_list.append(Scale(scale))
-    """
     if angle is not None:
         transform_list.append(Rotate(angle))
     if flip_prob is not None:

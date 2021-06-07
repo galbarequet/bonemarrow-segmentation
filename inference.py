@@ -10,7 +10,7 @@ from skimage.io import imsave
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from dataset import BrainSegmentationDataset as Dataset
+from dataset import BoneMarrowDataset as Dataset
 from unet import UNet
 from utils import dsc, gray2rgb, outline
 

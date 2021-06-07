@@ -11,12 +11,16 @@ class UNet(nn.Module):
 
         features = init_features
         self.encoder1 = UNet._block(in_channels, features, name="enc1")
+        self.skip1 = UNet._skip_block(in_channels, features, name="skip1")
         self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
         self.encoder2 = UNet._block(features, features * 2, name="enc2")
+        self.skip2 = UNet._skip_block(features, features * 2, name="skip1")
         self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
         self.encoder3 = UNet._block(features * 2, features * 4, name="enc3")
+        self.skip3 = UNet._skip_block(features * 2, features * 4, name="skip1")
         self.pool3 = nn.MaxPool2d(kernel_size=2, stride=2)
         self.encoder4 = UNet._block(features * 4, features * 8, name="enc4")
+        self.skip4 = UNet._skip_block(features * 4, features * 8, name="skip1")
         self.pool4 = nn.MaxPool2d(kernel_size=2, stride=2)
 
         self.bottleneck = UNet._block(features * 8, features * 16, name="bottleneck")
@@ -42,11 +46,26 @@ class UNet(nn.Module):
             in_channels=features, out_channels=out_channels, kernel_size=1
         )
 
+
     def forward(self, x):
         enc1 = self.encoder1(x)
-        enc2 = self.encoder2(self.pool1(enc1))
-        enc3 = self.encoder3(self.pool2(enc2))
-        enc4 = self.encoder4(self.pool3(enc3))
+        skip1 = self.skip1(x)
+        enc1 = enc1 + skip1
+
+        org_enc2 = self.pool1(enc1)
+        enc2 = self.encoder2(org_enc2)
+        skip2 = self.skip2(org_enc2)
+        enc2 = enc2 + skip2
+
+        org_enc3 = self.pool2(enc2)
+        enc3 = self.encoder3(org_enc3)
+        skip3 = self.skip3(org_enc3)
+        enc3 = enc3 + skip3
+
+        org_enc4 = self.pool3(enc3)
+        enc4 = self.encoder4(org_enc4)
+        skip4 = self.skip4(org_enc4)
+        enc4 = enc4 + skip4
 
         bottleneck = self.bottleneck(self.pool4(enc4))
 
@@ -62,7 +81,7 @@ class UNet(nn.Module):
         dec1 = self.upconv1(dec2)
         dec1 = torch.cat((dec1, enc1), dim=1)
         dec1 = self.decoder1(dec1)
-        return torch.sigmoid(self.conv(dec1))
+        return self.conv(dec1)
 
     @staticmethod
     def _block(in_channels, features, name):
@@ -96,3 +115,23 @@ class UNet(nn.Module):
                 ]
             )
         )
+
+    @staticmethod
+    def _skip_block(in_channels, features, name):
+        return nn.Sequential(
+            OrderedDict(
+                [
+                    (
+                        name + "conv1",
+                        nn.Conv2d(
+                            in_channels=in_channels,
+                            out_channels=features,
+                            kernel_size=1,
+                            padding=0,
+                            bias=False,
+                        ),
+                    ),
+                    (name + "norm1", nn.BatchNorm2d(num_features=features)),
+                    (name + "relu1", nn.ReLU(inplace=True))
+                    ]
+            ))

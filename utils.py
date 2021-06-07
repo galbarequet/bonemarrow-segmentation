@@ -5,9 +5,12 @@ from skimage.transform import resize
 
 
 def dsc(y_pred, y_true):
+    eps = 1e-3
     y_pred = np.round(y_pred).astype(int)
     y_true = np.round(y_true).astype(int)
-    return np.sum(y_pred == y_true) / y_true.size
+    bone_dsc = (2*np.sum(y_pred[0] * y_true[0]) + eps) / ((np.sum(y_true[0]) + np.sum(y_pred[0])) + eps)
+    fat_dsc = (2*np.sum(y_pred[1] * y_true[1])+ eps) / ((np.sum(y_true[1]) + np.sum(y_pred[1])) + eps)
+    return bone_dsc, fat_dsc
 
 
 def crop_sample(x):
@@ -41,7 +44,7 @@ def pad_to_multiple(x, divisor):
     diff_a = new_a - a
     diff_b = new_b - b
     padding = ((0, diff_a), (0, diff_b), (0,0))
-    volume = np.pad(volume, padding, mode='constant', constant_values=0)
+    volume = np.pad(volume, padding, mode='constant', constant_values=255)
     mask = np.pad(mask, padding, mode='constant', constant_values=0)
 
     return volume, mask

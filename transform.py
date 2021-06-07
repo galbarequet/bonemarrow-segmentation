@@ -1,9 +1,10 @@
 import numpy as np
 from skimage.transform import rescale, rotate
 from torchvision.transforms import Compose
+from PIL import Image, ImageEnhance
 
 
-def transforms(scale=None, angle=None, flip_prob=None, crop=None):
+def transforms(scale=None, angle=None, flip_prob=None, crop=None, color_applay=None):
     transform_list = []
     if crop is not None:
         transform_list.append(RandomCrop(crop))
@@ -13,6 +14,8 @@ def transforms(scale=None, angle=None, flip_prob=None, crop=None):
         transform_list.append(Rotate(angle))
     if flip_prob is not None:
         transform_list.append(HorizontalFlip(flip_prob))
+    if color_applay is not None:
+        transform_list.append(RandomColorTransform(color_applay))
 
     return Compose(transform_list)
 
@@ -106,5 +109,47 @@ class RandomCrop(object):
         start_width = np.random.randint(0, width - self.size)
         image = image[start_height:start_height + self.size, start_width:start_width + self.size, :]
         mask = mask[start_height:start_height + self.size, start_width:start_width + self.size, :]
+
+        return image, mask
+
+
+class RandomColorTransform(object):
+
+    def __init__(self, p=0.25):
+        self.p = p
+
+    def __call__(self, sample):
+        image, mask = sample
+
+        if np.random.rand() < self.p:
+            image_pil = Image.fromarray(np.uint8(image)).convert('RGB')
+            if np.random.rand() < 0.75:
+                factor = np.random.rand() + 0.5
+                image_pil = ImageEnhance.Brightness(image_pil).enhance(factor)
+            if np.random.rand() < 0.75:
+                factor = np.random.rand() + 0.5
+                image_pil = ImageEnhance.Contrast(image_pil).enhance(factor)
+            if np.random.rand() < 0.75:
+                factor = np.random.rand() + 0.5
+                image_pil = ImageEnhance.Color(image_pil).enhance(factor)
+            if np.random.rand() < 0.75:
+                colors = []
+                factors = []
+                colors.append(Image.new('RGB', size=image_pil.size, color=(255,0, 0)))
+                colors.append(Image.new('RGB', size=image_pil.size, color=(0, 255, 0)))
+                colors.append(Image.new('RGB', size=image_pil.size, color=(0, 0, 255)))
+                factors.append(np.random.rand()*0.2)
+                factors.append(np.random.rand() * 0.2)
+                factors.append(np.random.rand() * 0.2)
+                index = np.random.randint(0, 3)
+                for i in range(3):
+                    image_pil = Image.blend(image_pil, colors[(i+index)%3], factors[(i+index)%3])
+
+
+            image = np.array(image_pil)
+            return image, mask
+
+        image = np.fliplr(image).copy()
+        mask = np.fliplr(mask).copy()
 
         return image, mask

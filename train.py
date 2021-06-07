@@ -1,10 +1,7 @@
-#TODO: delete this lol
-import os
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-
 import argparse
 import json
 import os
+import pickle
 
 import numpy as np
 import torch
@@ -12,13 +9,12 @@ from torch.nn import BCELoss
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+from hannahmontananet import HannahMontanaNet
 
 from dataset import BoneMarrowDataset as Dataset
 from logger import Logger
-from transform import transforms, RandomCrop
-from unet import UNet
-from utils import log_images, dsc
-
+from transform import transforms
+from utils import dsc
 
 
 def main(args):
@@ -29,26 +25,32 @@ def main(args):
     loader_train, loader_valid = data_loaders(args)
     loaders = {"train": loader_train, "valid": loader_valid}
 
-    unet = UNet(in_channels=Dataset.in_channels, out_channels=Dataset.out_channels)
-    unet.to(device)
+    hannahmontana_net = HannahMontanaNet()
+    hannahmontana_net.to(device)
 
     loss_func = BCELoss()
-    best_validation_dsc = 0.0
+    best_validation_loss = 1.0
 
-    optimizer = optim.Adam(unet.parameters(), lr=args.lr)
+    optimizer = optim.Adam(hannahmontana_net.parameters(), lr=args.lr)
 
-    logger = Logger(args.logs)
     loss_train = []
     loss_valid = []
+    loss_train_mean = []
+    loss_valid_mean = []
+    validation_fat_layer_dsc = []
+    validation_bone_layer_dsc = []
 
     step = 0
 
     for epoch in tqdm(range(args.epochs), total=args.epochs):
+        if epoch % 10 == 0:
+            save_stats(validation_bone_layer_dsc, validation_fat_layer_dsc, loss_train_mean, loss_valid_mean)
+
         for phase in ["train", "valid"]:
             if phase == "train":
-                unet.train()
+                hannahmontana_net.train()
             else:
-                unet.eval()
+                hannahmontana_net.eval()
 
             validation_pred = []
             validation_true = []
@@ -63,7 +65,7 @@ def main(args):
                 optimizer.zero_grad()
 
                 with torch.set_grad_enabled(phase == "train"):
-                    y_pred = unet(x)
+                    y_pred = hannahmontana_net(x)
 
                     loss = loss_func(y_pred, y_true)
 
@@ -83,31 +85,44 @@ def main(args):
                         loss.backward()
                         optimizer.step()
 
-                if phase == "train" and (step + 1) % 10 == 0:
-                    log_loss_summary(logger, loss_train, step)
-                    loss_train = []
+            if phase == "train":
+                loss_train_mean.append(np.mean(loss_train))
+                loss_train = []
 
             if phase == "valid":
-                log_loss_summary(logger, loss_valid, step, prefix="val_")
-                mean_dsc = np.mean(
-                    calculate_dsc(
+                bone_dsc, fat_dsc = zip(*calculate_dsc(
                         validation_pred,
-                        validation_true,
-                    )
+                        validation_true)
                 )
-                print('mean dsc in validation is {}'.format(mean_dsc))
-                logger.scalar_summary("val_dsc", mean_dsc, step)
-                if mean_dsc > best_validation_dsc:
-                    best_validation_dsc = mean_dsc
-                    torch.save(unet.state_dict(), os.path.join(args.weights, "unet.pt"))
+                validation_bone_layer_dsc.append(np.mean(bone_dsc))
+                validation_fat_layer_dsc.append(np.mean(fat_dsc))
+                print('validation loss is {}'.format(loss.item()))
+                print('mean bone dsc {}'.format(np.mean(bone_dsc)))
+                print('mean fat dsc {}'.format(np.mean(fat_dsc)))
+                #logger.scalar_summary("val_dsc", mean_dsc, step)
+                if loss.item() < best_validation_loss:
+                    best_validation_loss = loss.item()
+                    torch.save(hannahmontana_net.state_dict(), os.path.join(args.weights, "unet.pt"))
+                loss_valid_mean.append(np.mean(loss_valid))
                 loss_valid = []
-                torch.save(unet.state_dict(), os.path.join(args.weights, "latest_unet.pt"))
+                torch.save(hannahmontana_net.state_dict(), os.path.join(args.weights, "latest_unet.pt"))
 
-    print("Best validation mean DSC: {:4f}".format(best_validation_dsc))
+    print("Best validation loss: {:4f}".format(best_validation_loss))
+    save_stats(validation_bone_layer_dsc, validation_fat_layer_dsc, loss_train_mean, loss_valid_mean)
+
+
+def save_stats(bone_layer_dsc, fat_layer_dsc, train_loss, valid_loss):
+    stats = {}
+    stats['bone_dsc'] = bone_layer_dsc
+    stats['fat_dsc'] = fat_layer_dsc
+    stats['train_loss'] = train_loss
+    stats['valid_loss'] = valid_loss
+    with open('stats/stats.pkl', 'wb') as f:
+        pickle.dump(stats, f)
+
 
 
 def data_loaders(args):
-    # TODO: change back to the original code
     dataset_train, dataset_valid = datasets(args)
 
     def worker_init(worker_id):
@@ -115,13 +130,16 @@ def data_loaders(args):
 
     loader_train = DataLoader(
         dataset_train,
-        batch_size=3,
+        batch_size=args.batch_size,
         shuffle=True,
+        num_workers=args.workers,
+        worker_init_fn=worker_init,
     )
     loader_valid = DataLoader(
         dataset_valid,
         batch_size=1,
-        drop_last=False,
+        num_workers=args.workers,
+        worker_init_fn=worker_init,
     )
 
     return loader_train, loader_valid
@@ -132,15 +150,12 @@ def datasets(args):
     train = Dataset(
         images_dir=args.images,
         subset="train",
-        image_size=args.image_size,
-        transform=transforms(scale=args.aug_scale, angle=args.aug_angle, flip_prob=0.5, crop=512),
+        transform=transforms(scale=args.aug_scale, angle=args.aug_angle, flip_prob=0.5, crop=args.crop_size, color_applay=args.color_apply),
     )
     valid = Dataset(
         images_dir=args.images,
         subset="validation",
-        image_size=args.image_size,
         random_sampling=False,
-        transform=RandomCrop(1024),
     )
     return train, valid
 
@@ -183,14 +198,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--epochs",
         type=int,
-        default=10000,
-        help="number of epochs to train (default: 100)",
+        default=1000,
+        help="number of epochs to train (default: 1000)",
     )
     parser.add_argument(
         "--lr",
         type=float,
-        default=0.0001,
-        help="initial learning rate (default: 0.001)",
+        default=0.00001,
+        help="initial learning rate (default: 0.00001)",
     )
     parser.add_argument(
         "--device",
@@ -205,31 +220,10 @@ if __name__ == "__main__":
         help="number of workers for data loading (default: 4)",
     )
     parser.add_argument(
-        "--vis-images",
-        type=int,
-        default=200,
-        help="number of visualization images to save in log file (default: 200)",
-    )
-    parser.add_argument(
-        "--vis-freq",
-        type=int,
-        default=10,
-        help="frequency of saving images to log file (default: 10)",
-    )
-    parser.add_argument(
         "--weights", type=str, default="./weights", help="folder to save weights"
     )
     parser.add_argument(
-        "--logs", type=str, default="./logs", help="folder to save logs"
-    )
-    parser.add_argument(
         "--images", type=str, default="./data_samples", help="root folder with images"
-    )
-    parser.add_argument(
-        "--image-size",
-        type=int,
-        default=256,
-        help="target input image size (default: 256)",
     )
     parser.add_argument(
         "--aug-scale",
@@ -242,6 +236,18 @@ if __name__ == "__main__":
         type=int,
         default=15,
         help="rotation angle range in degrees for augmentation (default: 15)",
+    )
+    parser.add_argument(
+        "--crop-size",
+        type=int,
+        default=1024,
+        help="crop size",
+    )
+    parser.add_argument(
+        "--color-apply",
+        type=float,
+        default=1,
+        help="colors",
     )
     args = parser.parse_args()
     main(args)

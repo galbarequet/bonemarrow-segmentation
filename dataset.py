@@ -19,12 +19,6 @@ class BoneMarrowDataset(Dataset):
     def create_mask(self, bone_layer, fat_layer):
         bone_layer = (bone_layer/255).astype('uint8')
         fat_layer = (fat_layer/255).astype('uint8')
-        #background_layer = np.zeros_like(bone_layer, dtype='uint8')
-
-        #background_layer = background_layer + bone_layer + fat_layer
-        #background_layer[background_layer != 0] = 1
-        #background_layer = 1 - background_layer
-        #background_layer = background_layer.astype('uint8')
 
         mask = np.stack([bone_layer, fat_layer])
         mask = mask.transpose(1, 2, 0)
@@ -56,10 +50,9 @@ class BoneMarrowDataset(Dataset):
         self,
         images_dir,
         transform=None,
-        image_size=256,
         subset="train",
         random_sampling=True,
-        validation_cases=4,
+        validation_cases=7,
         seed=42,
     ):
         assert subset in ["all", "train", "validation"]
@@ -74,12 +67,10 @@ class BoneMarrowDataset(Dataset):
             random.seed(seed)
             indices = [i for i in range(len(self.masks))]
             validation_indices = random.sample(indices, k=validation_cases)
-            validation_images = [self.images[i] for i in validation_indices]
-            validation_masks = [self.masks[i] for i in validation_indices]
             if subset == "validation":
-                #self.images, self.mask = zip(*[pad_to_multiple((self.images[i], self.masks[i]), 32) for i in validation_indices])
-                self.images = validation_images
-                self.masks = validation_masks
+                fixed_sizes = [pad_to_multiple((self.images[i], self.masks[i]), 32) for i in validation_indices]
+                self.images = [x[0] for x in fixed_sizes]
+                self.masks = [x[1] for x in fixed_sizes]
             else:
                 train_indices = sorted(
                     list(set(indices).difference(validation_indices))

@@ -1,5 +1,4 @@
 import argparse
-import json
 import os
 import pickle
 
@@ -12,14 +11,11 @@ from tqdm import tqdm
 from hannahmontananet import HannahMontanaNet
 
 from dataset import BoneMarrowDataset as Dataset
-from logger import Logger
 from transform import transforms
 from utils import dsc
 
 
 def main(args):
-    makedirs(args)
-    snapshotargs(args)
     device = torch.device("cpu" if not torch.cuda.is_available() else args.device)
 
     loader_train, loader_valid = data_loaders(args)
@@ -99,7 +95,6 @@ def main(args):
                 print('validation loss is {}'.format(loss.item()))
                 print('mean bone dsc {}'.format(np.mean(bone_dsc)))
                 print('mean fat dsc {}'.format(np.mean(fat_dsc)))
-                #logger.scalar_summary("val_dsc", mean_dsc, step)
                 if loss.item() < best_validation_loss:
                     best_validation_loss = loss.item()
                     torch.save(hannahmontana_net.state_dict(), os.path.join(args.weights, "unet.pt"))
@@ -169,19 +164,6 @@ def calculate_dsc(validation_pred, validation_true):
     return dsc_list
 
 
-def log_loss_summary(logger, loss, step, prefix=""):
-    logger.scalar_summary(prefix + "loss", np.mean(loss), step)
-
-
-def makedirs(args):
-    os.makedirs(args.weights, exist_ok=True)
-    os.makedirs(args.logs, exist_ok=True)
-
-
-def snapshotargs(args):
-    args_file = os.path.join(args.logs, "args.json")
-    with open(args_file, "w") as fp:
-        json.dump(vars(args), fp)
 
 
 if __name__ == "__main__":

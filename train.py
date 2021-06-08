@@ -16,6 +16,7 @@ from utils import dsc
 
 
 def main(args):
+    makedirs(args)
     device = torch.device("cpu" if not torch.cuda.is_available() else args.device)
 
     loader_train, loader_valid = data_loaders(args)
@@ -40,7 +41,7 @@ def main(args):
 
     for epoch in tqdm(range(args.epochs), total=args.epochs):
         if epoch % 10 == 0:
-            save_stats(validation_bone_layer_dsc, validation_fat_layer_dsc, loss_train_mean, loss_valid_mean)
+            save_stats(args, validation_bone_layer_dsc, validation_fat_layer_dsc, loss_train_mean, loss_valid_mean)
 
         for phase in ["train", "valid"]:
             if phase == "train":
@@ -103,16 +104,16 @@ def main(args):
                 torch.save(hannahmontana_net.state_dict(), os.path.join(args.weights, "latest_unet.pt"))
 
     print("Best validation loss: {:4f}".format(best_validation_loss))
-    save_stats(validation_bone_layer_dsc, validation_fat_layer_dsc, loss_train_mean, loss_valid_mean)
+    save_stats(args, validation_bone_layer_dsc, validation_fat_layer_dsc, loss_train_mean, loss_valid_mean)
 
 
-def save_stats(bone_layer_dsc, fat_layer_dsc, train_loss, valid_loss):
+def save_stats(args, bone_layer_dsc, fat_layer_dsc, train_loss, valid_loss):
     stats = {}
     stats['bone_dsc'] = bone_layer_dsc
     stats['fat_dsc'] = fat_layer_dsc
     stats['train_loss'] = train_loss
     stats['valid_loss'] = valid_loss
-    with open('stats/stats.pkl', 'wb') as f:
+    with open(os.path.join(args.stats, 'stats.pkl'), 'wb') as f:
         pickle.dump(stats, f)
 
 
@@ -164,6 +165,9 @@ def calculate_dsc(validation_pred, validation_true):
     return dsc_list
 
 
+def makedirs(args):
+    os.makedirs(args.weights, exist_ok=True)
+    os.makedirs(args.stats, exist_ok=True)
 
 
 if __name__ == "__main__":
@@ -203,6 +207,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--weights", type=str, default="./weights", help="folder to save weights"
+    )
+    parser.add_argument(
+        "--stats", type=str, default="./stats", help="folder to save stats"
     )
     parser.add_argument(
         "--images", type=str, default="./data_samples", help="root folder with images"

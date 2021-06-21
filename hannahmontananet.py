@@ -30,6 +30,7 @@ class HannahMontanaNet(nn.Module):
     def __init__(self, out_channels=2):
         super(HannahMontanaNet, self).__init__()
 
+        self.out_channels = out_channels #maybe remove
         self.deepLav = createDeepLabv3(out_channels)
         self.unet = UNet(out_channels=out_channels)
         self.conv1 = nn.Conv2d(

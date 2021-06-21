@@ -12,7 +12,7 @@ from hannahmontananet import HannahMontanaNet
 
 from dataset import BoneMarrowDataset as Dataset
 from transform import transforms
-from utils import dsc
+from utils import dsc, pred_image_crop
 
 
 def main(args):
@@ -62,7 +62,10 @@ def main(args):
                 optimizer.zero_grad()
 
                 with torch.set_grad_enabled(phase == "train"):
-                    y_pred = hannahmontana_net(x)
+                    if phase == "train":
+                        y_pred = hannahmontana_net(x)
+                    else:
+                        y_pred = pred_image_crop(x, hannahmontana_net, args.crop_size, device)
 
                     loss = loss_func(y_pred, y_true)
 
@@ -173,7 +176,7 @@ def makedirs(args):
 if __name__ == "__main__":
     # TODO: change back to the original code
     parser = argparse.ArgumentParser(
-        description="Training U-Net model for segmentation of brain MRI"
+        description="Training U-Net model for segmentation of bone marrow"
     )
     parser.add_argument(
         "--batch-size",

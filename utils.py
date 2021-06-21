@@ -1,5 +1,6 @@
 import numpy as np
-from medpy.filter.binary import largest_connected_component
+import torch
+import torch.nn.functional as F
 from skimage.exposure import rescale_intensity
 from skimage.transform import resize
 
@@ -131,3 +132,41 @@ def outline(image, mask, color):
         if 0.0 < np.mean(mask[max(0, y - 1) : y + 2, max(0, x - 1) : x + 2]) < 1.0:
             image[max(0, y) : y + 1, max(0, x) : x + 1] = color
     return image
+
+def pad_to_multiple_tf(x, divisor):
+    a = x.shape[2]
+    b = x.shape[3]
+
+    if a % divisor != 0:
+        new_a = a + (divisor - (a % divisor))
+    else:
+        new_a = a
+    if b % divisor != 0:
+        new_b = b + (divisor - (b % divisor))
+    else:
+        new_b = b
+    diff_a = new_a - a
+    diff_b = new_b - b
+    padding = (0,diff_b, 0,diff_a)
+    return F.pad(input=x, pad=padding, mode='constant', value=255)
+
+def pred_image_crop(image, network, crop_size, device):
+    h = image.shape[2]
+    w = image.shape[3]
+    y_pred = torch.tensor(np.zeros((image.shape[0], network.out_channels, h, w)), dtype=torch.float).to(device)
+    for start_x in range(0, h, crop_size):
+        for start_y in range(0, w, crop_size):
+            end_x = min(start_x + crop_size, h)
+            end_y = min(start_y + crop_size, w)
+            cropped_sample = image[:, :, start_x : end_x, start_y : end_y]
+            cropped_sample = pad_to_multiple_tf(cropped_sample, 256)
+            cropped_y_pred = network(cropped_sample)
+            y_pred[:, :, start_x : end_x, start_y : end_y] = cropped_y_pred[:, :, : end_x - start_x, : end_y - start_y]
+            # print("{}-{}".format(start_x, start_y))
+    return y_pred
+
+def create_seg_image(seg):
+    seg = seg*100
+    seg = np.concatenate((seg, np.zeros((1, seg.shape[1], seg.shape[2]))))
+    seg = seg.transpose((1, 2, 0))
+    return seg.astype(np.uint8)

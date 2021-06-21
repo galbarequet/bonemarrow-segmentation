@@ -10,7 +10,7 @@ from utils import crop_sample, pad_sample, resize_sample, normalize_volume, pad_
 
 
 class BoneMarrowDataset(Dataset):
-    """Brain MRI dataset for FLAIR abnormality segmentation"""
+    """Bone Marrow dataset for fat and bones segmentation"""
 
     in_channels = 3
     out_channels = 2
@@ -66,7 +66,9 @@ class BoneMarrowDataset(Dataset):
         if not subset == "all":
             random.seed(seed)
             indices = [i for i in range(len(self.masks))]
-            validation_indices = random.sample(indices, k=validation_cases)
+            validation_indices = indices
+            if validation_cases != None:
+                validation_indices = random.sample(indices, k=validation_cases)
             if subset == "validation":
                 fixed_sizes = [pad_to_multiple((self.images[i], self.masks[i]), 32) for i in validation_indices]
                 self.images = [x[0] for x in fixed_sizes]

@@ -180,7 +180,7 @@ def pred_image_crop(image, network, crop_size, step_size = None):
             cropped_y_pred = network(cropped_sample)
             y_pred[:, :, start_x : end_x, start_y : end_y] += cropped_y_pred[:, :, : end_x - start_x, : end_y - start_y]
             weights[:, :, start_x : end_x, start_y : end_y] += torch.ones(size=(image.shape[0], network.out_channels, end_x - start_x, end_y - start_y), dtype=data_type, device=pred_device)
-            print("{}-{}".format(start_x, start_y))
+            # print("{}-{}".format(start_x, start_y))
     y_pred = torch.div(y_pred, weights)
     return y_pred
 

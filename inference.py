@@ -40,6 +40,7 @@ def main(args):
             # y_pred = net(x)
             y_pred = pred_image_crop(x, net, args.crop_size, step_size=args.step_size)
             y_pred_np = y_pred.detach().cpu().numpy()
+            y_pred_np = np.round(y_pred_np).astype(np.int)
             pred_list.extend([y_pred_np[s] for s in range(y_pred_np.shape[0])])
 
             y_true_np = y_true.detach().cpu().numpy()
@@ -72,11 +73,10 @@ def main(args):
         image = x
         image = outline(image, y_pred[0], color=[255, 0, 0])
         image = outline(image, y_true[0], color=[0, 255, 0])
-        image = outline(image, y_pred[1], color=[255, 0, 0])
-        image = outline(image, y_true[1], color=[0, 255, 0])
         filename = "{}.png".format(p)
         filepath = os.path.join(folder_path, filename)
         imsave(filepath, image)
+        print("finished: {}".format(p))
 
 
 def data_loader(args):
@@ -84,6 +84,7 @@ def data_loader(args):
         images_dir=args.images,
         subset="validation",
         random_sampling=False,
+        validation_cases=None,
     )
     loader = DataLoader(
         dataset,

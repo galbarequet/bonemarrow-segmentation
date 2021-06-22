@@ -38,7 +38,7 @@ def main(args):
             x, y_true = x.to(device), y_true.to(device)
 
             # y_pred = net(x)
-            y_pred = pred_image_crop(x, net, args.crop_size, device)
+            y_pred = pred_image_crop(x, net, args.crop_size, step_size=args.step_size)
             y_pred_np = y_pred.detach().cpu().numpy()
             pred_list.extend([y_pred_np[s] for s in range(y_pred_np.shape[0])])
 
@@ -158,7 +158,13 @@ if __name__ == "__main__":
         "--crop-size",
         type=int,
         default=256,
-        help="target crop size for the images image size (default: 256)",
+        help="target crop size for the sliding window when segmenting (default: 256)",
+    )
+    parser.add_argument(
+        "--step-size",
+        type=int,
+        default=128,
+        help="target step size for the sliding window (default: 128)",
     )
     parser.add_argument(
         "--predictions",

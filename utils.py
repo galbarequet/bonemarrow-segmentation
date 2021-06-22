@@ -150,19 +150,38 @@ def pad_to_multiple_tf(x, divisor):
     padding = (0,diff_b, 0,diff_a)
     return F.pad(input=x, pad=padding, mode='constant', value=255)
 
-def pred_image_crop(image, network, crop_size, device):
+def pred_image_crop(image, network, crop_size, step_size = None):
+    """
+        image - tensor of the image to segment
+        network - the segmenting network
+        crop_size - the size of the squres on which to segment
+        step_size - (default - crop_size) the step size taken by the sliding window
+
+        return - a tensor of the segmented image
+    """
+    if step_size == None:
+        step_size = crop_size
+
+    pred_device = "cpu"
+    if image.is_cuda:
+        pred_device = image.get_device()
+    data_type = image.dtype
+    
     h = image.shape[2]
     w = image.shape[3]
-    y_pred = torch.tensor(np.zeros((image.shape[0], network.out_channels, h, w)), dtype=torch.float).to(device)
-    for start_x in range(0, h, crop_size):
-        for start_y in range(0, w, crop_size):
+    y_pred = torch.zeros(size=(image.shape[0], network.out_channels, h, w), dtype=data_type, device=pred_device)
+    weights = torch.zeros(size=(image.shape[0], network.out_channels, h, w), dtype=data_type, device=pred_device)
+    for start_x in range(0, h, step_size):
+        for start_y in range(0, w, step_size):
             end_x = min(start_x + crop_size, h)
             end_y = min(start_y + crop_size, w)
             cropped_sample = image[:, :, start_x : end_x, start_y : end_y]
             cropped_sample = pad_to_multiple_tf(cropped_sample, 256)
             cropped_y_pred = network(cropped_sample)
-            y_pred[:, :, start_x : end_x, start_y : end_y] = cropped_y_pred[:, :, : end_x - start_x, : end_y - start_y]
-            # print("{}-{}".format(start_x, start_y))
+            y_pred[:, :, start_x : end_x, start_y : end_y] += cropped_y_pred[:, :, : end_x - start_x, : end_y - start_y]
+            weights[:, :, start_x : end_x, start_y : end_y] += torch.ones(size=(image.shape[0], network.out_channels, end_x - start_x, end_y - start_y), dtype=data_type, device=pred_device)
+            print("{}-{}".format(start_x, start_y))
+    y_pred = torch.div(y_pred, weights)
     return y_pred
 
 def create_seg_image(seg):

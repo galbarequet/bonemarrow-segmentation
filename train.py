@@ -65,7 +65,7 @@ def main(args):
                     if phase == "train":
                         y_pred = hannahmontana_net(x)
                     else:
-                        y_pred = pred_image_crop(x, hannahmontana_net, args.crop_size, device)
+                        y_pred = pred_image_crop(x, hannahmontana_net, args.crop_size)
 
                     loss = loss_func(y_pred, y_true)
 
@@ -133,6 +133,7 @@ def data_loaders(args):
         shuffle=True,
         num_workers=args.workers,
         worker_init_fn=worker_init,
+        drop_last=True
     )
     loader_valid = DataLoader(
         dataset_valid,

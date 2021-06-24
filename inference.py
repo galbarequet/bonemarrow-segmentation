@@ -4,6 +4,8 @@ from PIL import Image
 
 import numpy as np
 import torch
+import matplotlib
+matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from skimage.io import imsave
@@ -51,10 +53,12 @@ def main(args):
 
     n = len(input_list)
 
-    dsc_dist = dsc_distribution(pred_list, true_list)
+    dsc_bone_dist, dsc_fat_dist = dsc_distribution(pred_list, true_list)
 
-    dsc_dist_plot = plot_dsc(dsc_dist)
-    imsave(args.figure, dsc_dist_plot)
+    dsc_bone_dist_plot = plot_dsc(dsc_bone_dist)
+    imsave(os.path.join(args.figure, 'dsc_bone.png'), dsc_bone_dist_plot)
+    dsc_fat_dist_plot = plot_dsc(dsc_fat_dist)
+    imsave(os.path.join(args.figure, 'dsc_fat.png'), dsc_fat_dist_plot)
 
     for p in range(n):
         x = input_list[p].transpose(1,2,0).astype(np.uint8)
@@ -97,13 +101,13 @@ def data_loader(args):
 
 def dsc_distribution(pred_list, true_list):
     n = len(pred_list)
-    dsc_dict = {}
+    dsc_bone_dict = {}
+    dsc_fat_dict = {}
     for p in range(n):
         y_pred = pred_list[p]
         y_true = true_list[p]
-        bone_dsc, fat_dsc = dsc(y_pred, y_true)
-        dsc_dict[p] = np.mean(np.array([bone_dsc, fat_dsc]))
-    return dsc_dict
+        dsc_bone_dict[p], dsc_fat_dict[p] = dsc(y_pred, y_true)
+    return dsc_bone_dict, dsc_fat_dict
 
 
 def plot_dsc(dsc_dist):
@@ -130,6 +134,7 @@ def plot_dsc(dsc_dist):
 
 def makedirs(args):
     os.makedirs(args.predictions, exist_ok=True)
+    os.makedirs(args.figure, exist_ok=True)
     os.makedirs(os.path.join(args.predictions, "outline"), exist_ok=True)
 
 
@@ -176,8 +181,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--figure",
         type=str,
-        default="./dsc.png",
-        help="filename for DSC distribution figure",
+        default="./dsc",
+        help="filename for DSC distribution folder",
     )
 
     args = parser.parse_args()

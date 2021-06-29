@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from dataset import BoneMarrowDataset as Dataset
-from utils import create_seg_image, dsc, gray2rgb, outline, pred_image_crop
+from utils import create_seg_image, dsc, outline, pred_image_crop
 
 from hannahmontananet import HannahMontanaNet
 

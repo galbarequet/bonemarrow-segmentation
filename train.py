@@ -150,7 +150,13 @@ def datasets(args):
     train = Dataset(
         images_dir=args.images,
         subset="train",
-        transform=transforms(scale=args.aug_scale, angle=args.aug_angle, flip_prob=0.5, crop=args.crop_size, color_applay=args.color_apply),
+        transform=transforms(
+            scale=args.aug_scale,
+            angle=args.aug_angle,
+            flip_prob=0.5,
+            crop=args.crop_size,
+            color_apply=args.color_apply,
+            elastic_apply=args.elastic_apply),
     )
     valid = Dataset(
         images_dir=args.images,
@@ -227,8 +233,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--aug-angle",
         type=int,
-        default=15,
-        help="rotation angle range in degrees for augmentation (default: 15)",
+        default=180,
+        help="rotation angle range in degrees for augmentation (default: 180)",
     )
     parser.add_argument(
         "--crop-size",
@@ -241,6 +247,12 @@ if __name__ == "__main__":
         type=float,
         default=1,
         help="colors",
+    )
+    parser.add_argument(
+        "--elastic-apply",
+        type=float,
+        default=0.25,
+        help="elastic transform probability",
     )
     args = parser.parse_args()
     main(args)

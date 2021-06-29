@@ -1,10 +1,13 @@
 import numpy as np
+import imgaug.augmenters as iaa #TODO maybe change everything to imgaug
+from scipy.ndimage.interpolation import map_coordinates
+from scipy.ndimage.filters import gaussian_filter
 from skimage.transform import rescale, rotate
 from torchvision.transforms import Compose
 from PIL import Image, ImageEnhance
 
 
-def transforms(scale=None, angle=None, flip_prob=None, crop=None, color_applay=None):
+def transforms(scale=None, angle=None, flip_prob=None, crop=None, color_apply=None, elastic_apply = None):
     transform_list = []
     if crop is not None:
         transform_list.append(RandomCrop(crop))
@@ -14,8 +17,10 @@ def transforms(scale=None, angle=None, flip_prob=None, crop=None, color_applay=N
         transform_list.append(Rotate(angle))
     if flip_prob is not None:
         transform_list.append(HorizontalFlip(flip_prob))
-    if color_applay is not None:
-        transform_list.append(RandomColorTransform(color_applay))
+    if color_apply is not None:
+        transform_list.append(RandomColorTransform(color_apply))
+    if elastic_apply is not None:
+        transform_list.append(RandomElasticTransform(elastic_apply))
 
     return Compose(transform_list)
 
@@ -74,9 +79,7 @@ class Rotate(object):
 
         angle = np.random.uniform(low=-self.angle, high=self.angle)
         image = rotate(image, angle, resize=False, preserve_range=True, mode="constant")
-        mask = rotate(
-            mask, angle, resize=False, order=0, preserve_range=True, mode="constant"
-        )
+        mask = rotate(mask, angle, resize=False, order=0, preserve_range=True, mode="constant")
         return image, mask
 
 
@@ -147,9 +150,32 @@ class RandomColorTransform(object):
 
 
             image = np.array(image_pil)
-            return image, mask
+        
+        return image, mask
 
-        image = np.fliplr(image).copy()
-        mask = np.fliplr(mask).copy()
+
+class RandomElasticTransform(object):
+
+    def __init__(self, p):
+        self.p = p
+
+    def __call__(self, sample):
+        image, mask = sample
+        # parameters which seem good
+        alpha = 100
+        sigma = 10
+
+        if np.random.rand() < self.p:
+            shape = image.shape[:2] 
+            dx = gaussian_filter((np.random.rand(*shape) * 2 - 1), sigma, mode="constant", cval=0) * alpha
+            dy = gaussian_filter((np.random.rand(*shape) * 2 - 1), sigma, mode="constant", cval=0) * alpha
+
+            x, y = np.meshgrid(np.arange(shape[0]), np.arange(shape[1]), indexing='ij')
+            indices = np.reshape(x+dx, (-1, 1)), np.reshape(y+dy, (-1, 1))
+
+            for i in range(image.shape[2]):
+                image[..., i] = map_coordinates(image[..., i], indices, order=1).reshape(shape)
+            for i in range(mask.shape[2]):
+                mask[..., i] = map_coordinates(mask[..., i], indices, order=0).reshape(shape)
 
         return image, mask

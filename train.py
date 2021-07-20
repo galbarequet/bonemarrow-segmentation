@@ -245,7 +245,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--color-apply",
         type=float,
-        default=1,
+        default=0.25,
         help="colors",
     )
     parser.add_argument(

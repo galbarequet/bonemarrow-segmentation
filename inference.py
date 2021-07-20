@@ -68,9 +68,9 @@ def main(args):
         # Sagi's way
         folder_path = os.path.join(args.predictions, str(p))
         os.makedirs(folder_path, exist_ok=True)
-        imsave(os.path.join(folder_path, "raw.png".format(p)), x)
-        imsave(os.path.join(folder_path, "pred.png".format(p)), create_seg_image(y_pred))
-        imsave(os.path.join(folder_path, "true.png".format(p)), create_seg_image(y_true))
+        imsave(os.path.join(folder_path, "raw.png"), x)
+        imsave(os.path.join(folder_path, "pred.png"), create_seg_image(y_pred))
+        imsave(os.path.join(folder_path, "true.png"), create_seg_image(y_true))
 
         # Outline way
         folder_path = os.path.join(args.predictions, "outline")

@@ -115,7 +115,7 @@ class RandomCrop(object):
 
         return image, mask
 
-
+# Might need to be redone as it sems to have a negative affect on the training process
 class RandomColorTransform(object):
 
     def __init__(self, p=0.25):
@@ -141,7 +141,7 @@ class RandomColorTransform(object):
                 colors.append(Image.new('RGB', size=image_pil.size, color=(255,0, 0)))
                 colors.append(Image.new('RGB', size=image_pil.size, color=(0, 255, 0)))
                 colors.append(Image.new('RGB', size=image_pil.size, color=(0, 0, 255)))
-                factors.append(np.random.rand()*0.2)
+                factors.append(np.random.rand() * 0.2)
                 factors.append(np.random.rand() * 0.2)
                 factors.append(np.random.rand() * 0.2)
                 index = np.random.randint(0, 3)

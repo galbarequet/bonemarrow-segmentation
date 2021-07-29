@@ -154,7 +154,7 @@ def pred_image_crop(image, network, crop_size, step_size = None):
     """
         image - tensor of the image to segment
         network - the segmenting network
-        crop_size - the size of the squres on which to segment
+        crop_size - the size of the squares on which to segment
         step_size - (default - crop_size) the step size taken by the sliding window
 
         return - a tensor of the segmented image
@@ -181,6 +181,7 @@ def pred_image_crop(image, network, crop_size, step_size = None):
             y_pred[:, :, start_x : end_x, start_y : end_y] += cropped_y_pred[:, :, : end_x - start_x, : end_y - start_y]
             weights[:, :, start_x : end_x, start_y : end_y] += torch.ones(size=(image.shape[0], network.out_channels, end_x - start_x, end_y - start_y), dtype=data_type, device=pred_device)
             # print("{}-{}".format(start_x, start_y))
+    # CR: (GB) add comment explaining this
     y_pred = torch.div(y_pred, weights)
     return y_pred
 

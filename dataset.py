@@ -63,18 +63,16 @@ class BoneMarrowDataset(Dataset):
         self.images, self.masks, self.names = self.load_dataset(images_dir)
 
         # select cases to subset
-        #TODO: This random shit is way to wack please fix this
+        # TODO: This random shit is way to wack please fix this
+        # Note: in training we use random crop in matching size, and in validation we use sliding window
+        #       so no need to add padding to images in either case
         if not subset == "all":
             random.seed(seed)
             indices = [i for i in range(len(self.masks))]
             validation_indices = indices
-            if validation_cases != None:
+            if validation_cases is not None:
                 validation_indices = random.sample(indices, k=validation_cases)
-            if subset == "validation":
-                fixed_sizes = [pad_to_multiple((self.images[i], self.masks[i]), 32) for i in validation_indices]
-                self.images = [x[0] for x in fixed_sizes]
-                self.masks = [x[1] for x in fixed_sizes]
-            else:
+            if subset != "validation":
                 train_indices = sorted(
                     list(set(indices).difference(validation_indices))
                 )
@@ -93,6 +91,7 @@ class BoneMarrowDataset(Dataset):
         image = self.images[idx]
         mask = self.masks[idx]
 
+        # Note: in validation self.random_sampling ia false, so we can use idx in names attribute properly
         if self.random_sampling:
             idx = np.random.randint(len(self.images))
             image = self.images[idx]

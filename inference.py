@@ -65,8 +65,9 @@ def main(args):
         y_pred = pred_list[p]
         y_true = true_list[p]
 
+        original_filename = loader.dataset.names[p].rsplit('.')[0]
         # Sagi's way
-        folder_path = os.path.join(args.predictions, str(p))
+        folder_path = os.path.join(args.predictions, original_filename)
         os.makedirs(folder_path, exist_ok=True)
         imsave(os.path.join(folder_path, "raw.png"), x)
         imsave(os.path.join(folder_path, "pred.png"), create_seg_image(y_pred))

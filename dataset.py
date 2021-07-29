@@ -28,6 +28,7 @@ class BoneMarrowDataset(Dataset):
     def load_dataset(self, image_dir):
         data = []
         masks = []
+        names = []
         raw_image_dir = 'raw_image'
         bone_layer_dir = 'bones'
         fat_layer_dir = 'fat'
@@ -39,10 +40,11 @@ class BoneMarrowDataset(Dataset):
 
             fat_layer = np.array(imread(os.path.join(os.path.join(image_dir, fat_layer_dir), filename), as_gray=True))
 
+            names.append(filename)
             data.append(raw_img)
             masks.append(self.create_mask(bone_layer, fat_layer))
 
-        return data, masks
+        return data, masks, names
 
 
 
@@ -58,8 +60,7 @@ class BoneMarrowDataset(Dataset):
         assert subset in ["all", "train", "validation"]
 
         # read images
-        self.images, self.masks = self.load_dataset(images_dir)
-
+        self.images, self.masks, self.names = self.load_dataset(images_dir)
 
         # select cases to subset
         #TODO: This random shit is way to wack please fix this
@@ -79,7 +80,7 @@ class BoneMarrowDataset(Dataset):
                 )
                 self.images = [self.images[i] for i in train_indices]
                 self.masks = [self.masks[i] for i in train_indices]
-
+                self.names = [self.names[i] for i in train_indices]
 
         self.random_sampling = random_sampling
 
@@ -96,7 +97,6 @@ class BoneMarrowDataset(Dataset):
             idx = np.random.randint(len(self.images))
             image = self.images[idx]
             mask = self.masks[idx]
-
 
         if self.transform is not None:
             image, mask = self.transform([image, mask])

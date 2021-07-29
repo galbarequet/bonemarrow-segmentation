@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 from PIL import Image
 
@@ -61,11 +62,28 @@ def main(args):
     imsave(os.path.join(args.figure, 'dsc_fat.png'), dsc_fat_dist_plot)
 
     for p in range(n):
-        x = input_list[p].transpose(1,2,0).astype(np.uint8)
+        x = input_list[p].transpose(1, 2, 0).astype(np.uint8)
         y_pred = pred_list[p]
         y_true = true_list[p]
 
+        # Note: calculate the relative volume of bone/fat from true background size
+        percentages = {
+            'true': {},
+            'pred': {},
+            'diff': {}
+        }
+        true_background_size = np.count_nonzero(y_true[0] + y_true[1])
+        for i, label_type in enumerate(['bone', 'fat']):
+            percentages['pred'][label_type] = 100 * np.count_nonzero(y_pred[i]) / true_background_size
+            percentages['true'][label_type] = 100 * np.count_nonzero(y_true[i]) / true_background_size
+            percentages['diff'][label_type] = percentages['pred'][label_type] - percentages['true'][label_type]
+
         original_filename = loader.dataset.names[p].rsplit('.')[0]
+        folder_path = os.path.join(args.predictions, original_filename)
+        os.makedirs(folder_path, exist_ok=True)
+        with open(os.path.join(folder_path, f'stats - {original_filename}.json'), 'w', encoding='utf-8') as f:
+            json.dump(percentages, f, ensure_ascii=False, indent=4)
+
         # Sagi's way
         folder_path = os.path.join(args.predictions, original_filename)
         os.makedirs(folder_path, exist_ok=True)
@@ -186,5 +204,4 @@ if __name__ == "__main__":
         help="filename for DSC distribution folder",
     )
 
-    args = parser.parse_args()
-    main(args)
+    main(parser.parse_args())

@@ -14,10 +14,10 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from dataset import BoneMarrowDataset as Dataset
-from utils import create_seg_image, dsc, outline, pred_image_crop, remove_lowest_confidence
+from utils import create_seg_image, dsc, outline, remove_lowest_confidence
 
 from hannahmontananet import HannahMontanaNet
-
+import sliding_window
 
 def main(args):
     makedirs(args)
@@ -32,6 +32,8 @@ def main(args):
         net.eval()
         net.to(device)
 
+        sliding_window_predictor = sliding_window.SlidingWindow(net, args.crop_size, args.step_size)
+
         input_list = []
         pred_list = []
         true_list = []
@@ -41,7 +43,7 @@ def main(args):
             x, y_true = x.to(device), y_true.to(device)
 
             # y_pred = net(x)
-            y_pred = pred_image_crop(x, net, args.crop_size, step_size=args.step_size)
+            y_pred = sliding_window_predictor.predict_image(x)
             y_pred_np = y_pred.detach().cpu().numpy()
             remove_lowest_confidence(y_pred_np)
             y_pred_np = np.round(y_pred_np).astype(np.int)

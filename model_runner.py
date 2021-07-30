@@ -1,20 +1,16 @@
 from matplotlib.backends.backend_agg import RendererAgg
 _lock = RendererAgg.lock
 
-import cv2
 import dataset
+import events
 from hannahmontananet import HannahMontanaNet
 import matplotlib
 import numpy as np
-from PIL import Image, ImageOps
 import torch
 import utils
 matplotlib.use('Agg')
 from skimage.io import imsave
-
-# CR: (GB) perhaps should remove this? or maybe change values and see what they mean...
-INPUT_DIM = (256, 256)
-OUTPUT_DIM = (64, 64)
+import sliding_window
 
 
 class ModelRunner:
@@ -24,8 +20,9 @@ class ModelRunner:
 
         self._load_model(weights_path)
 
-        self.crop_size = crop_size
-        self.step_size = step_size
+        self._sliding_window = sliding_window.SlidingWindow(self._net, crop_size, step_size)
+        self.progress_event = events.Events()
+        self._sliding_window.progress_event.on_change += self._trigger_progress_event
 
     def run_segmentation(self, image):
         padding = utils.get_padding_by_multiple(image, 32)
@@ -36,7 +33,7 @@ class ModelRunner:
 
         with torch.set_grad_enabled(False):
             x = image.to(self._device)
-            y_pred = utils.pred_image_crop(x, self._net, self.crop_size, step_size=self.step_size)
+            y_pred = self._sliding_window.predict_image(x)
             y_pred_np = y_pred.detach().cpu().numpy()
             utils.remove_lowest_confidence(y_pred_np)
             y_pred_np = np.round(y_pred_np).astype(np.int)
@@ -52,3 +49,6 @@ class ModelRunner:
             self._net.load_state_dict(state_dict)
             self._net.eval()
             self._net.to(self._device)
+
+    def _trigger_progress_event(self, value):
+        self.progress_event.on_change(value)

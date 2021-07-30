@@ -67,15 +67,26 @@ def segment_image():
 
     with f:
         st.sidebar.write('Please wait for the magic to happen! This may take up to a minute.')
-        st.beta_set_page_config(layout="wide")
+        # CR: (GB) fix wide layout
+        # st.set_page_config(layout="wide")
         left_column, right_column = st.beta_columns(2)
 
-        image = Image.open(f)
+        bar = st.progress(0)
+        progress_text = st.empty()
 
-        model = load_model()
+        def _progress_handler(percentage):
+            # Update the progress bar with each iteration.
+            progress_text.text(f'Finished processing {percentage}% of the image.')
+            bar.progress(percentage)
+
+        image = Image.open(f)
         left_column.image(np.array(image), caption="Selected Input")
 
+        model = load_model()
+        model.progress_event.on_change += _progress_handler
         segmented_image = model.run_segmentation(np.array(image))
+        model.progress_event.on_change -= _progress_handler
+
         right_column.image(segmented_image, caption="Predicted Segmentation")
         'done'
 

@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from dataset import BoneMarrowDataset as Dataset
-from utils import create_seg_image, dsc, outline, pred_image_crop
+from utils import create_seg_image, dsc, outline, pred_image_crop, remove_lowest_confidence
 
 from hannahmontananet import HannahMontanaNet
 
@@ -43,6 +43,7 @@ def main(args):
             # y_pred = net(x)
             y_pred = pred_image_crop(x, net, args.crop_size, step_size=args.step_size)
             y_pred_np = y_pred.detach().cpu().numpy()
+            remove_lowest_confidence(y_pred_np)
             y_pred_np = np.round(y_pred_np).astype(np.int)
             pred_list.extend([y_pred_np[s] for s in range(y_pred_np.shape[0])])
 

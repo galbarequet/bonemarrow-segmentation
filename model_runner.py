@@ -38,6 +38,7 @@ class ModelRunner:
             x = image.to(self._device)
             y_pred = utils.pred_image_crop(x, self._net, self.crop_size, step_size=self.step_size)
             y_pred_np = y_pred.detach().cpu().numpy()
+            utils.remove_lowest_confidence(y_pred_np)
             y_pred_np = np.round(y_pred_np).astype(np.int)
 
             segmented_image = utils.create_seg_image(y_pred_np[0])

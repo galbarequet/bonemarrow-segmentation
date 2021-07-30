@@ -5,6 +5,14 @@ from skimage.exposure import rescale_intensity
 from skimage.transform import resize
 
 
+def remove_lowest_confidence(y_pred):
+    """
+    Zeros the channel with lower confidence in prediction. Use this if you want to have an exclusive label per pixel
+    """
+    y_pred[:, 0, y_pred[0, 0] < y_pred[0, 1]] = 0
+    y_pred[:, 1, y_pred[0, 0] >= y_pred[0, 1]] = 0
+
+
 def dsc(y_pred, y_true):
     eps = 1e-3
     y_pred = np.round(y_pred).astype(int)

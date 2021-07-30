@@ -12,7 +12,7 @@ from hannahmontananet import HannahMontanaNet
 
 from dataset import BoneMarrowDataset as Dataset
 from transform import transforms
-from utils import dsc, pred_image_crop
+from utils import dsc, pred_image_crop, remove_lowest_confidence
 
 
 def main(args):
@@ -72,6 +72,7 @@ def main(args):
                     if phase == "valid":
                         loss_valid.append(loss.item())
                         y_pred_np = y_pred.detach().cpu().numpy()
+                        remove_lowest_confidence(y_pred_np)
                         validation_pred.extend(
                             [y_pred_np[s] for s in range(y_pred_np.shape[0])]
                         )

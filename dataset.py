@@ -6,8 +6,6 @@ import torch
 from skimage.io import imread
 from torch.utils.data import Dataset
 
-from utils import crop_sample, pad_sample, resize_sample, normalize_volume, pad_to_multiple
-
 
 class BoneMarrowDataset(Dataset):
     """Bone Marrow dataset for fat and bones segmentation"""
@@ -15,8 +13,8 @@ class BoneMarrowDataset(Dataset):
     in_channels = 3
     out_channels = 2
 
-
-    def create_mask(self, bone_layer, fat_layer):
+    @staticmethod
+    def create_mask(bone_layer, fat_layer):
         bone_layer = (bone_layer/255).astype('uint8')
         fat_layer = (fat_layer/255).astype('uint8')
 
@@ -24,8 +22,8 @@ class BoneMarrowDataset(Dataset):
         mask = mask.transpose(1, 2, 0)
         return mask
 
-
-    def load_dataset(self, image_dir):
+    @staticmethod
+    def load_dataset(image_dir):
         data = []
         masks = []
         names = []
@@ -42,11 +40,9 @@ class BoneMarrowDataset(Dataset):
 
             names.append(filename)
             data.append(raw_img)
-            masks.append(self.create_mask(bone_layer, fat_layer))
+            masks.append(BoneMarrowDataset.create_mask(bone_layer, fat_layer))
 
         return data, masks, names
-
-
 
     def __init__(
         self,

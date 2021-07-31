@@ -28,7 +28,7 @@ class SlidingWindow:
         w = image.shape[3]
         y_pred = torch.zeros(size=(image.shape[0], self._network.out_channels, h, w), dtype=data_type, device=device)
         weights = torch.zeros(size=(image.shape[0], self._network.out_channels, h, w), dtype=data_type, device=device)
-        self.progress_event.on_change(1)
+        self.progress_event.on_change(0)
         for start_x in range(0, h, self._step_size):
             for start_y in range(0, w, self._step_size):
                 end_x = min(start_x + self._crop_size, h)
@@ -54,9 +54,6 @@ class SlidingWindow:
         a = x.shape[2]
         b = x.shape[3]
 
-        # CR: (GB) the following is very similar to what's in utils.get_padding_by_multiple (except return value)
-        # CR: (GB) note the only diff is when the remainder is 0.
-        # CR: (GB) try to combine methods to avoid duplication
         if a % divisor != 0:
             new_a = a + (divisor - (a % divisor))
         else:

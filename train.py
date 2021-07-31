@@ -22,7 +22,7 @@ def main(args):
 
     loader_train, loader_valid = data_loaders(args)
     loaders = {"train": loader_train, "valid": loader_valid}
-    print(loader_valid.dataset.name)
+    print("validation set: {}".format(loader_valid.dataset.names))
 
     hannahmontana_net = HannahMontanaNet()
     hannahmontana_net.to(device)

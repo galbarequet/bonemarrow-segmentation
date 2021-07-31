@@ -70,7 +70,7 @@ def main(args):
         y_true = true_list[p]
         image_shape = y_pred[0].shape
 
-        # Note: calculates the confusion matrix like Monis described it.
+        # Note: calculates the confusion matrix like Moni described it.
         current_true_list = [y_true[0], y_true[1], np.ones(image_shape) - y_true[0] - y_true[1]]
         current_pred_list = [y_pred[0], y_pred[1], np.ones(image_shape) - y_pred[0] - y_pred[1]]
         confusion_matrix = [[0] * len(current_pred_list) for i in range(len(current_true_list))]

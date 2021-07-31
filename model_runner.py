@@ -25,8 +25,6 @@ class ModelRunner:
         self._sliding_window.progress_event.on_change += self._trigger_progress_event
 
     def run_segmentation(self, image):
-        padding = utils.get_padding_by_multiple(image, 32)
-        image = np.pad(image, padding, mode='constant', constant_values=255)
         image = image.transpose(2, 0, 1)
         image = torch.from_numpy(image.astype(np.float32))
         image = image.unsqueeze(0)

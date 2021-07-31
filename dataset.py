@@ -27,11 +27,13 @@ class BoneMarrowDataset(Dataset):
 
     def load_dataset(self, image_dir):
         data = []
-        masks = []
+        labels = []
         names = []
+        crop_masks = []
         raw_image_dir = 'raw_image'
         bone_layer_dir = 'bones'
         fat_layer_dir = 'fat'
+        mask_dir = 'masks'
         raw_image_full_path = os.path.join(image_dir, raw_image_dir)
         for i, filename in enumerate(os.listdir(raw_image_full_path)):
             raw_img = np.array(imread(os.path.join(raw_image_full_path, filename)))
@@ -40,11 +42,14 @@ class BoneMarrowDataset(Dataset):
 
             fat_layer = np.array(imread(os.path.join(os.path.join(image_dir, fat_layer_dir), filename), as_gray=True))
 
+            crop_mask = np.array(imread(os.path.join(os.path.join(image_dir, mask_dir), filename), as_gray=True))
+
             names.append(filename)
             data.append(raw_img)
-            masks.append(self.create_mask(bone_layer, fat_layer))
+            crop_masks.append(crop_mask)
+            labels.append(self.create_mask(bone_layer, fat_layer))
 
-        return data, masks, names
+        return data, labels, names, crop_masks
 
 
 
@@ -60,7 +65,7 @@ class BoneMarrowDataset(Dataset):
         assert subset in ["all", "train", "validation"]
 
         # read images
-        self.images, self.masks, self.names = self.load_dataset(images_dir)
+        self.images, self.labels, self.names, self.crop_masks = self.load_dataset(images_dir)
 
         # select cases to subset
         # TODO: This random shit is way to wack please fix this
@@ -68,7 +73,7 @@ class BoneMarrowDataset(Dataset):
         #       so no need to add padding to images in either case
         if not subset == "all":
             random.seed(seed)
-            indices = [i for i in range(len(self.masks))]
+            indices = [i for i in range(len(self.labels))]
             validation_indices = indices
             if validation_cases is not None:
                 validation_indices = random.sample(indices, k=validation_cases)
@@ -77,8 +82,15 @@ class BoneMarrowDataset(Dataset):
                     list(set(indices).difference(validation_indices))
                 )
                 self.images = [self.images[i] for i in train_indices]
-                self.masks = [self.masks[i] for i in train_indices]
+                self.labels = [self.labels[i] for i in train_indices]
                 self.names = [self.names[i] for i in train_indices]
+                self.crop_masks = [self.crop_masks[i] for i in train_indices]
+            else:
+                self.images = [self.images[i] for i in validation_indices]
+                self.labels = [self.labels[i] for i in validation_indices]
+                self.names = [self.names[i] for i in validation_indices]
+                self.crop_masks = [self.crop_masks[i] for i in validation_indices]
+
 
         self.random_sampling = random_sampling
 
@@ -89,24 +101,26 @@ class BoneMarrowDataset(Dataset):
 
     def __getitem__(self, idx):
         image = self.images[idx]
-        mask = self.masks[idx]
+        label = self.labels[idx]
+        crop_mask = self.crop_masks[idx]
 
         # Note: in validation self.random_sampling ia false, so we can use idx in names attribute properly
         if self.random_sampling:
             idx = np.random.randint(len(self.images))
             image = self.images[idx]
-            mask = self.masks[idx]
+            label = self.labels[idx]
+            crop_mask = self.crop_masks[idx]
 
         if self.transform is not None:
-            image, mask = self.transform([image, mask])
+            image, label = self.transform((image, label, crop_mask))
             #mask_tensor = self.transform(mask_tensor)
 
         # fix dimensions (C, H, W)
         image = image.transpose(2, 0, 1)
-        mask = mask.transpose(2, 0, 1)
+        label = label.transpose(2, 0, 1)
 
         image_tensor = torch.from_numpy(image.astype(np.float32))
-        mask_tensor = torch.from_numpy(mask.astype(np.float32))
+        label_tensor = torch.from_numpy(label.astype(np.float32))
 
         # return tensors
-        return image_tensor, mask_tensor
+        return image_tensor, label_tensor

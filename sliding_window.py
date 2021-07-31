@@ -28,7 +28,6 @@ class SlidingWindow:
         w = image.shape[3]
         y_pred = torch.zeros(size=(image.shape[0], self._network.out_channels, h, w), dtype=data_type, device=device)
         weights = torch.zeros(size=(image.shape[0], self._network.out_channels, h, w), dtype=data_type, device=device)
-        self.progress_event.on_change(0)
         for start_x in range(0, h, self._step_size):
             for start_y in range(0, w, self._step_size):
                 end_x = min(start_x + self._crop_size, h)
@@ -41,11 +40,11 @@ class SlidingWindow:
                 weights[:, :, start_x: end_x, start_y: end_y] += torch.ones(
                     size=(image.shape[0], self._network.out_channels, end_x - start_x, end_y - start_y),
                     dtype=data_type, device=device)
-                # print("{}-{}".format(start_x, start_y))
             self.progress_event.on_change(int(100 * start_x / h))
         self.progress_event.on_change(100)
 
-        # CR: (GB) add comment explaining this
+        # Note: we divide by weights to normalize the prediction in case there was overlapping in the sliding window
+        #       which caused summation of multiple window predictions over same pixel.
         y_pred = torch.div(y_pred, weights)
         return y_pred
 

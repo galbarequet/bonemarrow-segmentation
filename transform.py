@@ -31,7 +31,7 @@ class Scale(object):
         self.scale = scale
 
     def __call__(self, sample):
-        image, mask = sample
+        image, label = sample
 
         img_size = image.shape[0]
 
@@ -45,8 +45,8 @@ class Scale(object):
             mode="constant",
             anti_aliasing=False,
         )
-        mask = rescale(
-            mask,
+        label = rescale(
+            label,
             (scale, scale),
             order=0,
             multichannel=True,
@@ -59,14 +59,14 @@ class Scale(object):
             diff = (img_size - image.shape[0]) / 2.0
             padding = ((int(np.floor(diff)), int(np.ceil(diff))),) * 2 + ((0, 0),)
             image = np.pad(image, padding, mode="constant", constant_values=0)
-            mask = np.pad(mask, padding, mode="constant", constant_values=0)
+            label = np.pad(label, padding, mode="constant", constant_values=0)
         else:
             x_min = (image.shape[0] - img_size) // 2
             x_max = x_min + img_size
             image = image[x_min:x_max, x_min:x_max, ...]
-            mask = mask[x_min:x_max, x_min:x_max, ...]
+            label = label[x_min:x_max, x_min:x_max, ...]
 
-        return image, mask
+        return image, label
 
 
 class Rotate(object):
@@ -75,12 +75,12 @@ class Rotate(object):
         self.angle = angle
 
     def __call__(self, sample):
-        image, mask = sample
+        image, label = sample
 
         angle = np.random.uniform(low=-self.angle, high=self.angle)
         image = rotate(image, angle, resize=False, preserve_range=True, mode="constant")
-        mask = rotate(mask, angle, resize=False, order=0, preserve_range=True, mode="constant")
-        return image, mask
+        label = rotate(label, angle, resize=False, order=0, preserve_range=True, mode="constant")
+        return image, label
 
 
 class HorizontalFlip(object):
@@ -89,15 +89,15 @@ class HorizontalFlip(object):
         self.flip_prob = flip_prob
 
     def __call__(self, sample):
-        image, mask = sample
+        image, label = sample
 
         if np.random.rand() > self.flip_prob:
-            return image, mask
+            return image, label
 
         image = np.fliplr(image).copy()
-        mask = np.fliplr(mask).copy()
+        label = np.fliplr(label).copy()
 
-        return image, mask
+        return image, label
 
 class RandomCrop(object):
 
@@ -105,15 +105,14 @@ class RandomCrop(object):
         self.size = size
 
     def __call__(self, sample):
-        image, mask = sample
-        height = image.shape[0]
-        width = image.shape[1]
-        start_height = np.random.randint(0, height - self.size)
-        start_width = np.random.randint(0, width - self.size)
-        image = image[start_height:start_height + self.size, start_width:start_width + self.size, :]
-        mask = mask[start_height:start_height + self.size, start_width:start_width + self.size, :]
+        image, label, crop_mask = sample
+        nonzero = crop_mask[:-self.size, :-self.size].nonzero()
+        rand_index = np.random.randint(low=0, high=len(nonzero[0]))
+        base_index = (nonzero[0][rand_index], nonzero[1][rand_index])
+        image = image[base_index[0]:base_index[0] + self.size, base_index[1]:base_index[1] + self.size, :]
+        label = label[base_index[0]:base_index[0] + self.size, base_index[1]:base_index[1] + self.size, :]
 
-        return image, mask
+        return image, label
 
 # Might need to be redone as it sems to have a negative affect on the training process
 class RandomColorTransform(object):
@@ -122,7 +121,7 @@ class RandomColorTransform(object):
         self.p = p
 
     def __call__(self, sample):
-        image, mask = sample
+        image, label = sample
 
         if np.random.rand() < self.p:
             image_pil = Image.fromarray(np.uint8(image)).convert('RGB')
@@ -151,7 +150,7 @@ class RandomColorTransform(object):
 
             image = np.array(image_pil)
         
-        return image, mask
+        return image, label
 
 
 class RandomElasticTransform(object):
@@ -160,7 +159,7 @@ class RandomElasticTransform(object):
         self.p = p
 
     def __call__(self, sample):
-        image, mask = sample
+        image, label = sample
         # parameters which seem good
         alpha = 100
         sigma = 10
@@ -175,7 +174,7 @@ class RandomElasticTransform(object):
 
             for i in range(image.shape[2]):
                 image[..., i] = map_coordinates(image[..., i], indices, order=1).reshape(shape)
-            for i in range(mask.shape[2]):
-                mask[..., i] = map_coordinates(mask[..., i], indices, order=0).reshape(shape)
+            for i in range(label.shape[2]):
+                label[..., i] = map_coordinates(label[..., i], indices, order=0).reshape(shape)
 
-        return image, mask
+        return image, label

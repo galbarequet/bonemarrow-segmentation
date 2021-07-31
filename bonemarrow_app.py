@@ -1,13 +1,12 @@
+import base64
+import io
+import imageio
 import model_runner
-import cv2
 import numpy as np
 import os
-import pandas as pd
 import pathlib
 from PIL import Image
 import streamlit as st
-import time
-import urllib.request
 
 # General Constants
 # CR: (GB) change this
@@ -17,15 +16,8 @@ MODEL_WEIGHTS = os.path.join(BASE_DIR, 'latest_unet_1000_00001_nc.pt')
 DEFAULT_CROP_SIZE = 256
 DEFAULT_STEP_SIZE = 128
 
+# CR: (GB) remove this
 IMAGE_DISPLAY_SIZE = (330, 330)
-
-
-# Constants for sidebar dropdown
-SIDEBAR_OPTION_PROJECT_INFO = "Show Project Info"
-SIDEBAR_OPTION_UPLOAD_IMAGE = "Upload an Image"
-SIDEBAR_OPTION_MEET_TEAM = "Meet the Team"
-
-SIDEBAR_OPTIONS = [SIDEBAR_OPTION_PROJECT_INFO, SIDEBAR_OPTION_UPLOAD_IMAGE, SIDEBAR_OPTION_MEET_TEAM]
 
 
 @st.cache(allow_output_mutation=True)
@@ -45,80 +37,63 @@ def load_model():
     return model
 
 
-def get_file_content_as_string(path):
-    # CR: (GB) change this
-    url = 'https://google.com'
-    response = urllib.request.urlopen(url)
-    return response.read().decode("utf-8")
-
-
-def show_project_info():
-    st.sidebar.success("Project information showing on the right!")
-    st.write(get_file_content_as_string("Project_Info.md"))
+# Note: based on https://discuss.streamlit.io/t/how-to-download-image/3358/2
+def get_image_download_link(image, filename, text):
+    buffered = io.BytesIO()
+    imageio.imwrite(buffered, image, format='png')
+    img_str = base64.b64encode(buffered.getvalue()).decode()
+    return f'<a href="data:file/txt;base64,{img_str}" download="{filename}">{text}</a>'
 
 
 def segment_image():
-    st.sidebar.info('PRIVACY POLICY: uploaded images are never saved or stored. They are held entirely within memory for prediction \
-                    and discarded after the final results are displayed. ')
+    columns = st.beta_columns(2)
+    with columns[1]:
+        st.markdown('<br>', unsafe_allow_html=True)
+        st.info('**PRIVACY POLICY**: uploaded images are never saved or stored. They are held entirely '
+                'within memory for prediction and discarded after the final results are displayed. ')
 
-    f = st.sidebar.file_uploader("Please Select to Upload an Image", type=['png', 'jpg', 'jpeg', 'tiff', 'gif'])
+    f = columns[0].file_uploader("Please Select to Upload an Image", type=['png'])
     if f is None:
         return
-
     with f:
-        st.sidebar.write('Please wait for the magic to happen! This may take up to a minute.')
-        # CR: (GB) fix wide layout
-        # st.set_page_config(layout="wide")
-        left_column, right_column = st.beta_columns(2)
+        image = np.array(Image.open(f))
 
-        bar = st.progress(0)
-        progress_text = st.empty()
+    bar = st.progress(0)
+    progress_text = st.text('Please wait for magic to happen! This may take up to a minute.')
 
-        def _progress_handler(percentage):
-            # Update the progress bar with each iteration.
-            progress_text.text(f'Finished processing {percentage}% of the image.')
-            bar.progress(percentage)
+    def _progress_handler(percentage):
+        display_progress = f'Finished processing {percentage}% of the image.'
+        if percentage == 100:
+            display_progress += ' Wait for segmented image to be displayed.'
 
-        image = Image.open(f)
-        left_column.image(np.array(image), caption="Selected Input")
+        progress_text.text(display_progress)
+        bar.progress(percentage)
 
-        model = load_model()
-        model.progress_event.on_change += _progress_handler
-        segmented_image = model.run_segmentation(np.array(image))
-        model.progress_event.on_change -= _progress_handler
+    left_column, right_column = st.beta_columns(2)
 
-        right_column.image(segmented_image, caption="Predicted Segmentation")
-        'done'
+    left_column.image(image, caption="Selected Input", output_format='PNG')
 
+    model = load_model()
+    model.progress_event.on_change += _progress_handler
+    segmented_image = model.run_segmentation(image)
+    model.progress_event.on_change -= _progress_handler
 
-def show_team_info():
-    st.subheader("Our Team")
-
-    'Gal Barequet'
-    'Itay Kalev'
-    'Sagi Tauber'
-
-    st.sidebar.success('Hope you had a great time :)')
+    right_column.image(segmented_image, caption="Predicted Segmentation", output_format='PNG')
+    st.markdown(get_image_download_link(segmented_image, 'output.png', 'Download segmented image!'),
+                unsafe_allow_html=True)
+    'done'
 
 
 def main():
-    mode_to_handler = {
-        SIDEBAR_OPTION_PROJECT_INFO: show_project_info,
-        SIDEBAR_OPTION_UPLOAD_IMAGE: segment_image,
-        SIDEBAR_OPTION_MEET_TEAM: show_team_info
-    }
+    st.set_page_config(page_title='Bone Marrow App', layout='wide')
+    st.title('Bone Marrow Segmentation Application')
+    st.write('Bone Marrow Segmentation (BMS) is the problem domain of automatic '
+             'segmentation of different tissues in bone-marrow biopsy samples.')
+    st.write('BMS is relevant for medical research purposes. In particular, BMS is used for researching'
+             ' the co-relation between the relative volume of fat/bone tissue in the biopsy and diseases.')
+    st.write('**Our goal is to automate segmentation of different tissues in a bone-marrow biopsy sample.**')
 
-    st.title('Bone Marrow App')
-    st.sidebar.write(" ------ ")
-
-    st.sidebar.title("Explore the Following")
-    app_mode = st.sidebar.selectbox("Please select from the following", SIDEBAR_OPTIONS)
-
-    handler = mode_to_handler.get(app_mode)
-    if handler is not None:
-        handler()
-    else:
-        raise ValueError('Selected sidebar option is not implemented. Please open an issue on Github: https://github.com/galbarequet/bonemarrow-segmentation')
+    segment_image()
 
 
 if __name__ == "__main__":

@@ -12,7 +12,8 @@ from hannahmontananet import HannahMontanaNet
 
 from dataset import BoneMarrowDataset as Dataset
 from transform import transforms
-from utils import dsc, pred_image_crop
+from utils import dsc, remove_lowest_confidence
+import sliding_window
 
 
 def main(args):
@@ -24,6 +25,8 @@ def main(args):
 
     hannahmontana_net = HannahMontanaNet()
     hannahmontana_net.to(device)
+    # CR: (GB) in train should we use crop size for step size?
+    sliding_window_predictor = sliding_window.SlidingWindow(hannahmontana_net, args.crop_size, args.crop_size)
 
     loss_func = BCELoss()
     best_validation_loss = 1.0
@@ -65,13 +68,14 @@ def main(args):
                     if phase == "train":
                         y_pred = hannahmontana_net(x)
                     else:
-                        y_pred = pred_image_crop(x, hannahmontana_net, args.crop_size)
+                        y_pred = sliding_window_predictor.predict_image(x)
 
                     loss = loss_func(y_pred, y_true)
 
                     if phase == "valid":
                         loss_valid.append(loss.item())
                         y_pred_np = y_pred.detach().cpu().numpy()
+                        remove_lowest_confidence(y_pred_np)
                         validation_pred.extend(
                             [y_pred_np[s] for s in range(y_pred_np.shape[0])]
                         )

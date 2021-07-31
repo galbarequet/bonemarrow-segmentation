@@ -68,24 +68,39 @@ def main(args):
         x = input_list[p].transpose(1, 2, 0).astype(np.uint8)
         y_pred = pred_list[p]
         y_true = true_list[p]
+        image_shape = y_pred[0].shape
 
-        # Note: calculate the relative volume of bone/fat from true background size
-        percentages = {
-            'true': {},
-            'pred': {},
-            'diff': {}
-        }
-        true_background_size = np.count_nonzero(y_true[0] + y_true[1])
-        for i, label_type in enumerate(['bone', 'fat']):
-            percentages['pred'][label_type] = 100 * np.count_nonzero(y_pred[i]) / true_background_size
-            percentages['true'][label_type] = 100 * np.count_nonzero(y_true[i]) / true_background_size
-            percentages['diff'][label_type] = percentages['pred'][label_type] - percentages['true'][label_type]
-
+        # Note: calculates the confusion matrix like Monis described it.
+        current_true_list = [y_true[0], y_true[1], np.ones(image_shape) - y_true[0] - y_true[1]]
+        current_pred_list = [y_pred[0], y_pred[1], np.ones(image_shape) - y_pred[0] - y_pred[1]]
+        confusion_matrix = [[0] * len(current_pred_list) for i in range(len(current_true_list))]
+        for i in range(len(current_true_list)):
+            for j in range(len(current_pred_list)):
+                confusion_matrix[i][j] = int(np.sum(current_true_list[i] * current_pred_list[j]))
+        
         original_filename = loader.dataset.names[p].rsplit('.')[0]
         folder_path = os.path.join(args.predictions, original_filename)
         os.makedirs(folder_path, exist_ok=True)
         with open(os.path.join(folder_path, f'stats - {original_filename}.json'), 'w', encoding='utf-8') as f:
-            json.dump(percentages, f, ensure_ascii=False, indent=4)
+            json.dump(confusion_matrix, f, ensure_ascii=False, indent=4)
+
+        # Note: calculate the relative volume of bone/fat from true background size
+        # percentages = {
+        #     'true': {},
+        #     'pred': {},
+        #     'diff': {}
+        # }
+        # true_background_size = np.count_nonzero(y_true[0] + y_true[1])
+        # for i, label_type in enumerate(['bone', 'fat']):
+        #     percentages['pred'][label_type] = 100 * np.count_nonzero(y_pred[i]) / true_background_size
+        #     percentages['true'][label_type] = 100 * np.count_nonzero(y_true[i]) / true_background_size
+        #     percentages['diff'][label_type] = percentages['pred'][label_type] - percentages['true'][label_type]
+
+        # original_filename = loader.dataset.names[p].rsplit('.')[0]
+        # folder_path = os.path.join(args.predictions, original_filename)
+        # os.makedirs(folder_path, exist_ok=True)
+        # with open(os.path.join(folder_path, f'stats - {original_filename}.json'), 'w', encoding='utf-8') as f:
+        #     json.dump(percentages, f, ensure_ascii=False, indent=4)
 
         # Sagi's way
         folder_path = os.path.join(args.predictions, original_filename)

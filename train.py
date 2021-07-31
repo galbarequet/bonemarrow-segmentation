@@ -22,11 +22,12 @@ def main(args):
 
     loader_train, loader_valid = data_loaders(args)
     loaders = {"train": loader_train, "valid": loader_valid}
+    print(loader_valid.dataset.name)
 
     hannahmontana_net = HannahMontanaNet()
     hannahmontana_net.to(device)
     # CR: (GB) in train should we use crop size for step size?
-    sliding_window_predictor = sliding_window.SlidingWindow(hannahmontana_net, args.crop_size, args.crop_size)
+    sliding_window_predictor = sliding_window.SlidingWindow(hannahmontana_net, args.crop_size, args.step_size)
 
     loss_func = BCELoss()
     best_validation_loss = 1.0
@@ -243,8 +244,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--crop-size",
         type=int,
-        default=1024,
+        default=512,
         help="crop size",
+    )
+    parser.add_argument(
+        "--step-size",
+        type=int,
+        default=128,
+        help="step size",
     )
     parser.add_argument(
         "--color-apply",

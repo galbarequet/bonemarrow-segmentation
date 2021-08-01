@@ -3,6 +3,7 @@ import base64
 import io
 import imageio
 import matplotlib.pyplot as plt
+from matplotlib.backends.backend_agg import RendererAgg
 import model_runner
 import numpy as np
 import os
@@ -10,6 +11,7 @@ import pathlib
 from PIL import Image
 import streamlit as st
 import utils
+_lock = RendererAgg.lock
 
 # General Constants
 # CR: (GB) change this
@@ -102,16 +104,18 @@ def segment_image():
 
     # Note: calculating the relative volume of bone/fat in the segmented pixels
     total_predicted_size = np.count_nonzero(prediction[0] + prediction[1])
+    labels = ['Bone', 'Fat']
     relative_volume = [100 * np.count_nonzero(prediction[i]) / total_predicted_size for i in range(prediction.shape[0])]
 
-    labels = ['Bone', 'Fat']
-    fig, ax = plt.subplots()
-    ax.pie(relative_volume, labels=labels, autopct='%1.2f%%', startangle=90)
-    ax.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+    with _lock:
+        fig, ax = plt.subplots()
+        ax.pie(relative_volume, labels=labels, autopct='%1.2f%%', startangle=90)
+        ax.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
 
-    with columns[2]:
-        st.subheader('Relative Volume:')
-        st.pyplot(fig)
+        with columns[2]:
+            st.subheader('Relative Volume:')
+            st.pyplot(fig)
+
 
 
 def main():

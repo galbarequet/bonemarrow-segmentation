@@ -1,12 +1,15 @@
+import contextlib
 import base64
 import io
 import imageio
+import matplotlib.pyplot as plt
 import model_runner
 import numpy as np
 import os
 import pathlib
 from PIL import Image
 import streamlit as st
+import utils
 
 # General Constants
 # CR: (GB) change this
@@ -45,6 +48,15 @@ def get_image_download_link(image, filename, text):
     return f'<a href="data:file/txt;base64,{img_str}" download="{filename}">{text}</a>'
 
 
+@contextlib.contextmanager
+def use_progress(model, progress_handler):
+    model.progress_event.on_change += progress_handler
+    try:
+        yield
+    finally:
+        model.progress_event.on_change -= progress_handler
+
+
 def segment_image():
     columns = st.beta_columns(2)
     with columns[1]:
@@ -58,30 +70,48 @@ def segment_image():
     with f:
         image = np.array(Image.open(f))
 
+    finished_processing = False
     bar = st.progress(0)
     progress_text = st.text('Please wait for magic to happen! This may take up to a minute.')
 
     def _progress_handler(percentage):
-        display_progress = f'Finished processing {percentage}% of the image.'
-        if percentage == 100:
-            display_progress += ' Wait for segmented image to be displayed.'
+        if not finished_processing:
+            display_progress = f'Processed {percentage}% of the image.'
+            if percentage == 100:
+                display_progress += ' Wait for segmented image to be displayed.'
+        else:
+            display_progress = f'Image processing complete!'
 
         progress_text.text(display_progress)
         bar.progress(percentage)
 
-    left_column, right_column = st.beta_columns(2)
+    columns = st.beta_columns(3)
 
-    left_column.image(image, caption="Selected Input", output_format='PNG')
+    columns[0].image(image, caption="Selected Input", output_format='PNG')
 
     model = load_model()
-    model.progress_event.on_change += _progress_handler
-    segmented_image = model.run_segmentation(image)
-    model.progress_event.on_change -= _progress_handler
+    with use_progress(model, _progress_handler):
+        prediction = model.predict(image)
+        finished_processing = True
+        segmented_image = utils.create_seg_image(prediction)
+        _progress_handler(100)
 
-    right_column.image(segmented_image, caption="Predicted Segmentation", output_format='PNG')
+    columns[1].image(segmented_image, caption="Predicted Segmentation", output_format='PNG')
     st.markdown(get_image_download_link(segmented_image, 'output.png', 'Download segmented image!'),
                 unsafe_allow_html=True)
-    'done'
+
+    # Note: calculating the relative volume of bone/fat in the segmented pixels
+    total_predicted_size = np.count_nonzero(prediction[0] + prediction[1])
+    relative_volume = [100 * np.count_nonzero(prediction[i]) / total_predicted_size for i in range(prediction.shape[0])]
+
+    labels = ['Bone', 'Fat']
+    fig, ax = plt.subplots()
+    ax.pie(relative_volume, labels=labels, autopct='%1.2f%%', startangle=90)
+    ax.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+
+    with columns[2]:
+        st.subheader('Relative Volume:')
+        st.pyplot(fig)
 
 
 def main():

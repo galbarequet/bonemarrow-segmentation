@@ -2,11 +2,9 @@ import argparse
 import json
 import os
 from PIL import Image
-
 import numpy as np
 import torch
 import matplotlib
-matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from skimage.io import imsave
@@ -18,6 +16,8 @@ from utils import create_seg_image, dsc, outline, remove_lowest_confidence
 
 from hannahmontananet import HannahMontanaNet
 import sliding_window
+matplotlib.use('Agg')
+
 
 def main(args):
     makedirs(args)

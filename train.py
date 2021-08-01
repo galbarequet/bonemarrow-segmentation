@@ -26,7 +26,6 @@ def main(args):
 
     hannahmontana_net = HannahMontanaNet()
     hannahmontana_net.to(device)
-    # CR: (GB) in train should we use crop size for step size?
     sliding_window_predictor = sliding_window.SlidingWindow(hannahmontana_net, args.crop_size, args.step_size)
 
     loss_func = BCELoss()
@@ -116,14 +115,14 @@ def main(args):
 
 
 def save_stats(args, bone_layer_dsc, fat_layer_dsc, train_loss, valid_loss):
-    stats = {}
-    stats['bone_dsc'] = bone_layer_dsc
-    stats['fat_dsc'] = fat_layer_dsc
-    stats['train_loss'] = train_loss
-    stats['valid_loss'] = valid_loss
+    stats = {
+        'bone_dsc': bone_layer_dsc,
+        'fat_dsc': fat_layer_dsc,
+        'train_loss': train_loss,
+        'valid_loss': valid_loss
+    }
     with open(os.path.join(args.stats, 'stats.pkl'), 'wb') as f:
         pickle.dump(stats, f)
-
 
 
 def data_loaders(args):
@@ -188,7 +187,7 @@ def makedirs(args):
 if __name__ == "__main__":
     # TODO: change back to the original code
     parser = argparse.ArgumentParser(
-        description="Training U-Net model for segmentation of bone marrow"
+        description="Training model for segmentation of bone marrow"
     )
     parser.add_argument(
         "--batch-size",
@@ -265,5 +264,4 @@ if __name__ == "__main__":
         default=0.25,
         help="elastic transform probability",
     )
-    args = parser.parse_args()
-    main(args)
+    main(parser.parse_args())

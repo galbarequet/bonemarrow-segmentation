@@ -1,16 +1,11 @@
-from matplotlib.backends.backend_agg import RendererAgg
-_lock = RendererAgg.lock
-
 import dataset
 import events
 from hannahmontananet import HannahMontanaNet
-import matplotlib
 import numpy as np
-import torch
-import utils
-matplotlib.use('Agg')
 from skimage.io import imsave
 import sliding_window
+import torch
+import utils
 
 
 class ModelRunner:

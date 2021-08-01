@@ -108,7 +108,6 @@ class BoneMarrowDataset(Dataset):
 
         if self.transform is not None:
             image, label = self.transform((image, label, crop_mask))
-            #mask_tensor = self.transform(mask_tensor)
 
         # fix dimensions (C, H, W)
         image = image.transpose(2, 0, 1)

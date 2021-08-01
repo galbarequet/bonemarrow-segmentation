@@ -1,57 +1,73 @@
-# U-Net for brain segmentation
+# Bone Marrow Segmentation Web App
 
-U-Net implementation in PyTorch for FLAIR abnormality segmentation in brain MRI based on a deep learning segmentation algorithm used in [Association of genomic subtypes of lower-grade gliomas with shape features automatically extracted by a deep learning algorithm](https://doi.org/10.1016/j.compbiomed.2019.05.002).
+Table of Contents :bookmark_tabs:
+=================
+- [Overview](#overview)
+- [Installation](#installation)
+- [Data](#data)
+- [Model](#model)
+- [Results](#results)
+- [Steps to Use the Application](#steps-to-use-the-application)
+- [Code and Resources Used](#code-and-resources-used)
 
-This repository is an all Python port of official MATLAB/Keras implementation in [brain-segmentation](https://github.com/mateuszbuda/brain-segmentation).
-Weights for trained models are provided and can be used for inference or fine-tuning on a different dataset.
-If you use code or weights shared in this repository, please consider citing:
+## Overview
+This repository contains code and model to run bone-marrow segmentation. More details will be available soon.
 
+## Installation
+- download and install conda for the relevant operating system:
+https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html
+- download and install git for the relevant operating system:
+https://git-scm.com/book/en/v2/Getting-Started-Installing-Git
+- open the conda interperter that was installed
+- create a new virtual environment by typing in the interpreter:
 ```
-@article{buda2019association,
-  title={Association of genomic subtypes of lower-grade gliomas with shape features automatically extracted by a deep learning algorithm},
-  author={Buda, Mateusz and Saha, Ashirbani and Mazurowski, Maciej A},
-  journal={Computers in Biology and Medicine},
-  volume={109},
-  year={2019},
-  publisher={Elsevier},
-  doi={10.1016/j.compbiomed.2019.05.002}
-}
-```
-
-## docker
-
-```
-docker build -t brainseg .
-```
-
-```
-nvidia-docker run --rm --shm-size 8G -it -v `pwd`:/workspace brainseg
+conda create --name bone_marrow_env python=3.7
 ```
 
-## PyTorch Hub
-
-Loading model using PyTorch Hub: [pytorch.org/hub/mateuszbuda\_brain-segmentation-pytorch\_unet](https://pytorch.org/hub/mateuszbuda_brain-segmentation-pytorch_unet/)
-
-```python
-import torch
-model = torch.hub.load('mateuszbuda/brain-segmentation-pytorch', 'unet',
-    in_channels=3, out_channels=1, init_features=32, pretrained=True)
+- activate the new environment by typing in the interpreter:
+```
+conda activate bone_marrow_env
 ```
 
-## data
+- navigate to the directory where you want to save the files, for example:
+```
+cd C:\User\myusername\Work
+```
 
-![dataset](./assets/brain-mri-lgg.png)
+- clone the github repository by typing in the interpreter:
+```
+git clone https://github.com/galbarequet/bonemarrow-segmentation.git
+```
 
-Dataset used for development and evaluation was made publicly available on Kaggle: [kaggle.com/mateuszbuda/lgg-mri-segmentation](https://www.kaggle.com/mateuszbuda/lgg-mri-segmentation).
-It contains MR images from [TCIA LGG collection](https://wiki.cancerimagingarchive.net/display/Public/TCGA-LGG) with segmentation masks approved by a board-certified radiologist at Duke University.
+- install dependencies by typing in the interpreter:
+```
+pip install -r requirements.txt
+```
 
-## model
+- run the webapp by typing in the interpreter:
+```
+streamlit run bonemarrow_app.py
+```
 
+## Data
+
+| raw image | bones mask | fat mask |
+|:-------:|:-------:|:-------:|
+|![raw](./assets/raw%201%20(1).png)|![bones](./assets/bones%201%20(1).png)|![fat](./assets/fat%201%20(1).png)|
+
+Dataset used for development and evaluation was made privately by medical research team.
+
+
+## Model
+
+#TODO: fix model
 A segmentation model implemented in this repository is U-Net as described in [Association of genomic subtypes of lower-grade gliomas with shape features automatically extracted by a deep learning algorithm](https://doi.org/10.1016/j.compbiomed.2019.05.002) with added batch normalization.
 
 ![unet](./assets/unet.png)
 
-## results
+## Results
+
+#TODO: fix results
 
 |![TCGA_DU_6404_19850629](./assets/TCGA_DU_6404_19850629.gif)|![TCGA_HT_7879_19981009](./assets/TCGA_HT_7879_19981009.gif)|![TCGA_CS_4944_20010208](./assets/TCGA_CS_4944_20010208.gif)|
 |:-------:|:-------:|:-------:|
@@ -67,20 +83,25 @@ Distribution of DSC for 10 randomly selected validation cases.
 The red vertical line corresponds to mean DSC (91%) and the green one to median DSC (92%).
 Results may be biased since model selection was based on the mean DSC on these validation cases.
 
-## inference
+## Steps to Use the Application
 
-1. Download and extract the dataset from [Kaggle](https://www.kaggle.com/mateuszbuda/lgg-mri-segmentation).
-2. Run docker container.
-3. Run `inference.py` script with specified paths to weights and images. Trained weights for input images of size 256x256 are provided in `./weights/unet.pt` file. For more options and help run: `python3 inference.py --help`.
+For both inference and train, request permissions to download the original dataset and use `scripts/psd_to_layers.py` to generate and convert to a new dataset for next steps.
 
-## train
+### inference
 
-1. Download and extract the dataset from [Kaggle](https://www.kaggle.com/mateuszbuda/lgg-mri-segmentation).
-2. Run docker container.
-3. Run `train.py` script. Default path to images is `./kaggle_3m`. For more options and help run: `python3 train.py --help`.
+- Run `inference.py` script with specified paths to weights and images. Trained weights are provided in `./weights/weights.pt` file. For more options and help run: `python3 inference.py --help`.
 
-Training can be also run using Kaggle kernel shared together with the dataset: [kaggle.com/mateuszbuda/brain-segmentation-pytorch](https://www.kaggle.com/mateuszbuda/brain-segmentation-pytorch).
-Due to memory limitations for Kaggle kernels, input images are of size 224x224 instead of 256x256.
+### Train
+
+- Run `train.py` script. For more options and help run: `python3 train.py --help`.
+
+### Web App
+
+- Click 'Browse files' and upload an image file in png format
 
 Running this code on a custom dataset would likely require adjustments in `dataset.py`.
 Should you need help with this, just open an issue.
+
+## Code and Resources Used
+- Python: Version 3.7
+- Packages: torchvision, torch, opencv-python, PIL, streamlit, events 

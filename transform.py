@@ -1,5 +1,4 @@
 import numpy as np
-import imgaug.augmenters as iaa #TODO maybe change everything to imgaug
 from scipy.ndimage.interpolation import map_coordinates
 from scipy.ndimage.filters import gaussian_filter
 from skimage.transform import rescale, rotate

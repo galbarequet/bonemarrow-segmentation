@@ -22,6 +22,7 @@ def main(args):
 
     loader_train, loader_valid = data_loaders(args)
     loaders = {"train": loader_train, "valid": loader_valid}
+    phase_samples = {"train": loader_train.dataset.names, "valid": loader_valid.dataset.names}
     print("validation set: {}".format(loader_valid.dataset.names))
 
     hannahmontana_net = HannahMontanaNet()
@@ -44,7 +45,8 @@ def main(args):
 
     for epoch in tqdm(range(args.epochs), total=args.epochs):
         if epoch % 10 == 0:
-            save_stats(args, validation_bone_layer_dsc, validation_fat_layer_dsc, loss_train_mean, loss_valid_mean)
+            save_stats(args, phase_samples, validation_bone_layer_dsc,
+                       validation_fat_layer_dsc, loss_train_mean, loss_valid_mean)
 
         for phase in ["train", "valid"]:
             if phase == "train":
@@ -55,7 +57,7 @@ def main(args):
             validation_pred = []
             validation_true = []
 
-            for i, data in enumerate(loaders[phase]):
+            for _, data in enumerate(loaders[phase]):
                 if phase == "train":
                     step += 1
 
@@ -111,11 +113,13 @@ def main(args):
                 torch.save(hannahmontana_net.state_dict(), os.path.join(args.weights, "latest_unet.pt"))
 
     print("Best validation loss: {:4f}".format(best_validation_loss))
-    save_stats(args, validation_bone_layer_dsc, validation_fat_layer_dsc, loss_train_mean, loss_valid_mean)
+    save_stats(args, phase_samples, validation_bone_layer_dsc,
+               validation_fat_layer_dsc, loss_train_mean, loss_valid_mean)
 
 
-def save_stats(args, bone_layer_dsc, fat_layer_dsc, train_loss, valid_loss):
+def save_stats(args, dataset, bone_layer_dsc, fat_layer_dsc, train_loss, valid_loss):
     stats = {
+        'dataset': dataset,
         'bone_dsc': bone_layer_dsc,
         'fat_dsc': fat_layer_dsc,
         'train_loss': train_loss,

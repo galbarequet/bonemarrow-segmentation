@@ -160,12 +160,15 @@ def datasets(args):
             flip_prob=0.5,
             crop=args.crop_size,
             color_apply=args.color_apply,
-            elastic_apply=args.elastic_apply),
+            elastic_apply=args.elastic_apply,
+        ),
+        fat_overrides_bone=args.fat_overrides,
     )
     valid = Dataset(
         images_dir=args.images,
         subset="validation",
         random_sampling=False,
+        fat_overrides_bone=args.fat_overrides,
     )
     return train, valid
 
@@ -263,5 +266,11 @@ if __name__ == "__main__":
         type=float,
         default=0.25,
         help="elastic transform probability",
+    )
+    parser.add_argument(
+        "--fat-overrides",
+        type=bool,
+        default=True,
+        help="does fat override bones?",
     )
     main(parser.parse_args())

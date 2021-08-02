@@ -1,13 +1,16 @@
 import events
+import numpy as np
 import torch
 import torch.nn.functional as F
 
 
 class SlidingWindow:
-    def __init__(self, network, crop_size, step_size):
+    def __init__(self, network, crop_size, step_size, window_edge_percentage=0.1, window_edge_weight=0.75):
         self._network = network
         self._crop_size = crop_size
         self._step_size = step_size
+        self.window_edge_percentage_halved = window_edge_percentage / 2
+        self.weight_to_add_to_center = 1 / window_edge_weight - 1
         self.progress_event = events.Events()
 
     def predict_image(self, image):
@@ -32,14 +35,30 @@ class SlidingWindow:
             for start_y in range(0, w, self._step_size):
                 end_x = min(start_x + self._crop_size, h)
                 end_y = min(start_y + self._crop_size, w)
+
+                window_length = end_x - start_x
+                window_height = end_y - start_y
+
+                x_center_start = int(np.floor(start_x + window_length * self.window_edge_percentage_halved))
+                x_center_end = int(np.ceil(end_x - window_length * self.window_edge_percentage_halved))
+                y_center_start = int(np.floor(start_y + window_height * self.window_edge_percentage_halved))
+                y_center_end = int(np.ceil(end_y - window_height * self.window_edge_percentage_halved))
+
                 cropped_sample = image[:, :, start_x: end_x, start_y: end_y]
                 cropped_sample = self.pad_tensor_to_multiple(cropped_sample, 256)
                 cropped_y_pred = self._network(cropped_sample)
+
                 y_pred[:, :, start_x: end_x, start_y: end_y] += cropped_y_pred[:, :, : end_x - start_x,
                                                                                : end_y - start_y]
+
+                y_pred[:, :, x_center_start: x_center_end, y_center_start: y_center_end] += cropped_y_pred[:, :, x_center_start - start_x: x_center_end - start_x,
+                                                                                            y_center_start - start_y: y_center_end - start_y] * self.weight_to_add_to_center
+
                 weights[:, :, start_x: end_x, start_y: end_y] += torch.ones(
                     size=(image.shape[0], self._network.out_channels, end_x - start_x, end_y - start_y),
-                    dtype=data_type, device=device)
+                    dtype=data_type, device=device) * (1 + self.weight_to_add_to_center)
+
+
             self.progress_event.on_change(int(100 * start_x / h))
         self.progress_event.on_change(100)
 

@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from dataset import BoneMarrowDataset as Dataset
-from utils import create_seg_image, dsc, outline, remove_lowest_confidence
+from utils import create_seg_image, dsc, outline, remove_lowest_confidence, create_error_image
 
 from hannahmontananet import HannahMontanaNet
 import sliding_window
@@ -39,6 +39,7 @@ def main(args):
         true_list = []
 
         for i, data in tqdm(enumerate(loader)):
+            print(i)
             x, y_true = data
             x, y_true = x.to(device), y_true.to(device)
 
@@ -105,9 +106,13 @@ def main(args):
         # Sagi's way
         folder_path = os.path.join(args.predictions, original_filename)
         os.makedirs(folder_path, exist_ok=True)
+
         imsave(os.path.join(folder_path, "raw.png"), x)
         imsave(os.path.join(folder_path, "pred.png"), create_seg_image(y_pred))
         imsave(os.path.join(folder_path, "true.png"), create_seg_image(y_true))
+
+        imsave(os.path.join(folder_path, "bones_error.png"), create_error_image(y_pred[0], y_true[0]))
+        imsave(os.path.join(folder_path, "fat_error.png"), create_error_image(y_pred[1], y_true[1]))
 
         # Outline way
         folder_path = os.path.join(args.predictions, "outline")
@@ -126,12 +131,13 @@ def data_loader(args):
         subset="validation",
         random_sampling=False,
         validation_cases=None,
+        fat_overrides_bone=args.fat_overrides
     )
     loader = DataLoader(
         dataset,
         batch_size=args.batch_size,
         drop_last=False,
-        num_workers=1
+        num_workers=1,
     )
     return loader
 
@@ -200,7 +206,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--crop-size",
         type=int,
-        default=256,
+        default=512,
         help="target crop size for the sliding window when segmenting (default: 256)",
     )
     parser.add_argument(
@@ -220,6 +226,12 @@ if __name__ == "__main__":
         type=str,
         default="./dsc",
         help="filename for DSC distribution folder",
+    )
+    parser.add_argument(
+        "--fat-overrides",
+        type=bool,
+        default=True,
+        help="does fat override bones?",
     )
 
     main(parser.parse_args())

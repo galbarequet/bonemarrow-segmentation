@@ -14,16 +14,22 @@ class BoneMarrowDataset(Dataset):
     out_channels = 2
 
     @staticmethod
-    def create_mask(bone_layer, fat_layer):
+    def create_mask(bone_layer, fat_layer, fat_overrides_bone):
         bone_layer = (bone_layer/255).astype('uint8')
         fat_layer = (fat_layer/255).astype('uint8')
+
+        if fat_overrides_bone:
+            bone_layer[bone_layer == fat_layer] = 0
+        else:
+            fat_layer[bone_layer == fat_layer] = 0
+
 
         mask = np.stack([bone_layer, fat_layer])
         mask = mask.transpose(1, 2, 0)
         return mask
 
     @staticmethod
-    def load_dataset(image_dir):
+    def load_dataset(image_dir, fat_overrides_bone):
         data = []
         labels = []
         names = []
@@ -45,7 +51,7 @@ class BoneMarrowDataset(Dataset):
             names.append(filename)
             data.append(raw_img)
             crop_masks.append(crop_mask)
-            labels.append(BoneMarrowDataset.create_mask(bone_layer, fat_layer))
+            labels.append(BoneMarrowDataset.create_mask(bone_layer, fat_layer, fat_overrides_bone))
 
         return data, labels, names, crop_masks
 
@@ -57,11 +63,14 @@ class BoneMarrowDataset(Dataset):
         random_sampling=True,
         validation_cases=7,
         seed=42,
+        fat_overrides_bone=True
     ):
         assert subset in ["all", "train", "validation"]
 
+
+
         # read images
-        self.images, self.labels, self.names, self.crop_masks = self.load_dataset(images_dir)
+        self.images, self.labels, self.names, self.crop_masks = self.load_dataset(images_dir, fat_overrides_bone)
 
         # select cases to subset
         # TODO: This random shit is way to wack please fix this

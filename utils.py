@@ -31,3 +31,14 @@ def create_seg_image(seg):
     seg = np.concatenate((seg, np.zeros((1, seg.shape[1], seg.shape[2]))))
     seg = seg.transpose((1, 2, 0))
     return seg.astype(np.uint8)
+
+
+def create_error_image(pred_layer, true_layer):
+    diff = pred_layer - true_layer
+    error = np.stack((diff, -1*diff, np.zeros_like(pred_layer)))
+
+    error = np.maximum(error, 0) * 255
+    error = error.transpose((1, 2, 0))
+
+    return error.astype(np.uint8)
+

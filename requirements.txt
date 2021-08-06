@@ -11,4 +11,6 @@ streamlit==0.85.0
 events==0.4
 torch==1.9.0
 matplotlib==3.3.4
+torchvision==0.10.0
 requests==2.25.1
+opencv-python==4.5.3.56

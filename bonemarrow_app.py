@@ -9,33 +9,63 @@ import numpy as np
 import os
 import pathlib
 from PIL import Image
+import requests
 import streamlit as st
 import utils
 _lock = RendererAgg.lock
 
 # General Constants
+WEIGHTS_DIR = r'weights'
 # CR: (GB) change this
-BASE_DIR = r'D:\Gali\university\tau\ML workshop\weights'
-# CR: (GB) change this
-MODEL_WEIGHTS = os.path.join(BASE_DIR, 'latest_unet_1000_00001_nc.pt')
-DEFAULT_CROP_SIZE = 256
+MODEL_WEIGHTS = os.path.join(WEIGHTS_DIR, 'bms_model.pt')
+MODEL_WEIGHTS_DRIVE_ID = '13yxm1rChiO3OjugujVoR-ph3Qlk3Gzs0'
+DEFAULT_CROP_SIZE = 512
 DEFAULT_STEP_SIZE = 128
 
-# CR: (GB) remove this
-IMAGE_DISPLAY_SIZE = (330, 330)
+
+# based on https://stackoverflow.com/questions/38511444/python-download-files-from-google-drive-using-url
+def download_file_from_google_drive(file_id, destination):
+    google_url = "https://docs.google.com/uc?export=download"
+
+    session = requests.Session()
+
+    response = session.get(google_url, params={'id': file_id}, stream=True)
+    token = get_confirm_token(response)
+
+    if token:
+        params = {'id': file_id, 'confirm': token}
+        response = session.get(google_url, params=params, stream=True)
+
+    save_response_content(response, destination)
+
+
+def get_confirm_token(response):
+    for key, value in response.cookies.items():
+        if key.startswith('download_warning'):
+            return value
+
+    return None
+
+
+def save_response_content(response, destination):
+    chunk_size = 32768
+
+    with open(destination, "wb") as f:
+        for chunk in response.iter_content(chunk_size):
+            if chunk:  # filter out keep-alive new chunks
+                f.write(chunk)
 
 
 @st.cache(allow_output_mutation=True)
 def load_model():
-    model_base_dir = pathlib.Path(BASE_DIR)
+    model_base_dir = pathlib.Path(WEIGHTS_DIR)
     model_base_dir.mkdir(exist_ok=True)
 
     weights_path = pathlib.Path(MODEL_WEIGHTS)
     if not weights_path.exists():
-        with st.spinner("Downloading model weights... this may take a few minutes. (~260 MB) Please don't interrupt it."):
-            # CR: (GB) fix this
-            # download_file(url=MODEL_WEIGHTS_DEPLOYMENT_URL, local_filename=MODEL_WEIGHTS)
-            pass
+        with st.spinner("Downloading model weights... this may take a few minutes."
+                        " (~260 MB) Please don't interrupt it."):
+            download_file_from_google_drive(MODEL_WEIGHTS_DRIVE_ID, MODEL_WEIGHTS)
 
     model = model_runner.ModelRunner(weights_path=MODEL_WEIGHTS, crop_size=DEFAULT_CROP_SIZE,
                                      step_size=DEFAULT_STEP_SIZE)
@@ -115,7 +145,6 @@ def segment_image():
         with columns[2]:
             st.subheader('Relative Volume:')
             st.pyplot(fig)
-
 
 
 def main():

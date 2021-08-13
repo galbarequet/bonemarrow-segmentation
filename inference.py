@@ -47,7 +47,7 @@ def main(args):
             y_pred = sliding_window_predictor.predict_image(x)
             y_pred_np = y_pred.detach().cpu().numpy()
             remove_lowest_confidence(y_pred_np)
-            y_pred_np = np.round(y_pred_np).astype(np.int)
+            y_pred_np = np.round(y_pred_np).astype(int)
             pred_list.extend([y_pred_np[s] for s in range(y_pred_np.shape[0])])
 
             y_true_np = y_true.detach().cpu().numpy()

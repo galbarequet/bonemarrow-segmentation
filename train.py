@@ -107,14 +107,30 @@ def main(args):
                 print('mean fat dsc {}'.format(np.mean(fat_dsc)))
                 if loss.item() < best_validation_loss:
                     best_validation_loss = loss.item()
-                    torch.save(hannahmontana_net.state_dict(), os.path.join(args.weights, "unet.pt"))
+                    try_save_model(args, hannahmontana_net.state_dict(), os.path.join(args.weights, "unet.pt"))
                 loss_valid_mean.append(np.mean(loss_valid))
                 loss_valid = []
-                torch.save(hannahmontana_net.state_dict(), os.path.join(args.weights, "latest_unet.pt"))
+                try_save_model(args, hannahmontana_net.state_dict(), os.path.join(args.weights, "latest_unet.pt"))
 
     print("Best validation loss: {:4f}".format(best_validation_loss))
     save_stats(args, phase_samples, validation_bone_layer_dsc,
                validation_fat_layer_dsc, loss_train_mean, loss_valid_mean)
+
+
+def try_save_model(args, obj, path):
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        torch.save(obj, path)
+
+    except BaseException as e:
+        print(f'Save failed. Exception: {e}')
+        print('Saving to backup dir')
+        try:
+            os.makedirs(args.backup_dir, exist_ok=True)
+            torch.save(obj, os.path.join(args.backup_dir, os.path.basename(path)))
+        except BaseException as e:
+            print(f'Save to backup dir failed. Exception: {e}')
+            print('skipping save...')
 
 
 def save_stats(args, dataset, bone_layer_dsc, fat_layer_dsc, train_loss, valid_loss):
@@ -189,6 +205,7 @@ def calculate_dsc(validation_pred, validation_true):
 def makedirs(args):
     os.makedirs(args.weights, exist_ok=True)
     os.makedirs(args.stats, exist_ok=True)
+    os.makedirs(args.backup_dir, exist_ok=True)
 
 
 if __name__ == "__main__":
@@ -234,6 +251,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--images", type=str, default="./data_samples", help="root folder with images"
+    )
+    parser.add_argument(
+        "--backup-dir", type=str, default="./backup", help="backup folder for saving model"
     )
     parser.add_argument(
         "--aug-scale",

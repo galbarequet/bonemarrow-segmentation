@@ -2,7 +2,6 @@ import argparse
 import os
 import pickle
 
-import numpy
 import numpy as np
 import torch
 from torch.nn import CrossEntropyLoss
@@ -139,12 +138,29 @@ def main(args):
 
                 loss_valid_mean.append(np.mean(loss_valid))
                 loss_valid = []
-                torch.save(hannahmontana_net.state_dict(), os.path.join(args.weights, "latest_unet.pt"))
+                try_save_model(args, hannahmontana_net.state_dict(), os.path.join(args.weights, "latest_unet.pt"))
 
     print("Best validation loss: {:4f}".format(best_validation_loss))
     save_stats(args, phase_samples, validation_density_error, loss_train_mean, loss_valid_mean,
                validation_background_dsc,
                validation_bone_dsc, validation_fat_dsc, validation_tissue_dsc)
+
+
+
+def try_save_model(args, obj, path):
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        torch.save(obj, path)
+
+    except BaseException as e:
+        print(f'Save failed. Exception: {e}')
+        print('Saving to backup dir')
+        try:
+            os.makedirs(args.backup_dir, exist_ok=True)
+            torch.save(obj, os.path.join(args.backup_dir, os.path.basename(path)))
+        except BaseException as e:
+            print(f'Save to backup dir failed. Exception: {e}')
+            print('skipping save...')
 
 
 def save_stats(args, dataset, validation_density_error, train_loss, valid_loss, background_dsc, bone_dsc, fat_dsc, tissue_dsc):
@@ -231,6 +247,7 @@ def calculate_dsc(validation_pred, validation_true):
 def makedirs(args):
     os.makedirs(args.weights, exist_ok=True)
     os.makedirs(args.stats, exist_ok=True)
+    os.makedirs(args.backup_dir, exist_ok=True)
 
 
 if __name__ == "__main__":
@@ -242,7 +259,7 @@ if __name__ == "__main__":
         "--batch-size",
         type=int,
         default=4,
-        help="input batch size for training (default: 16)",
+        help="input batch size for training (default: 4)",
     )
     parser.add_argument(
         "--epochs",
@@ -254,7 +271,7 @@ if __name__ == "__main__":
         "--lr",
         type=float,
         default=0.0001,
-        help="initial learning rate (default: 0.00001)",
+        help="initial learning rate (default: 0.0001)",
     )
     parser.add_argument(
         "--device",
@@ -276,6 +293,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--images", type=str, default="./data_samples", help="root folder with images"
+    )
+    parser.add_argument(
+        "--backup-dir", type=str, default="./backup", help="backup folder for saving model"
     )
     parser.add_argument(
         "--aug-scale",
@@ -329,6 +349,6 @@ if __name__ == "__main__":
         "--scheduler-patience",
         type=int,
         default=10,
-        help="The factor that the lr is reduced",
+        help="Epochs without improvements before the scheduler reduces the lr",
     )
     main(parser.parse_args())

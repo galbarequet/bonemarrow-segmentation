@@ -8,7 +8,9 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 # from inference import plot_dsc # doesn't work and haven't find a way to do relative imports
 from skimage.io import imsave
 
+
 prediction_path = None
+
 
 #### Copied from inference if you find a way to import then delete this
 def plot_dsc(dsc_dist):
@@ -41,6 +43,7 @@ def print_menu():
     print('5 - create dsc graphs')
     print('q - quit')
 
+
 def normalize_confusion_matrix(confusion_mat):
     confusion_mat = confusion_mat[:][:]
     for i in range(len(confusion_mat)):
@@ -48,6 +51,7 @@ def normalize_confusion_matrix(confusion_mat):
         for j in range(len(confusion_mat[i])):
             confusion_mat[i][j] /= norm_factor
     return confusion_mat
+
 
 def print_confusion_matrix_graph(confusion_mat, normalize = False):
     if normalize:
@@ -60,6 +64,7 @@ def print_confusion_matrix_graph(confusion_mat, normalize = False):
     plt.xlabel('Predicted labels')
     plt.show()
 
+
 def get_confusion_matrix(path_con_mat = None, print_graph = False, normalize_mat = True):
     if path_con_mat == None:
         path_con_mat = input('Insert path to confusion matrix:\n')
@@ -69,9 +74,11 @@ def get_confusion_matrix(path_con_mat = None, print_graph = False, normalize_mat
         print_confusion_matrix_graph(confusion_mat, normalize = normalize_mat)
     return confusion_mat
 
+
 def change_pred_dir():
     global prediction_path
     prediction_path = input('Insert path to prediction folder:\n')
+
 
 def graph(y_values, y_label = '', x_label = ''):
     x = range(1, len(y_values) + 1)
@@ -79,6 +86,7 @@ def graph(y_values, y_label = '', x_label = ''):
     plt.xlabel(x_label)
     plt.ylabel(y_label)
     plt.show()
+
 
 def learning_graph():
     path_log_output = input('Insert path to output file from the training process:\n')
@@ -100,9 +108,11 @@ def learning_graph():
     graph(bone_dsc ,y_label = 'bone dsc',x_label = 'epoch')
     graph(validation_loss ,y_label = 'validation loss',x_label = 'epoch')
 
+
 def calc_dsc_from_cm(cm, index):
     np_cm = np.array(cm)
     return (2 * np_cm[index, index]) / (sum(np_cm[index, :]) + sum(np_cm[:, index]))
+
 
 def get_dsc_from_json_file(file_name):
     """
@@ -120,6 +130,7 @@ def get_dsc_from_json_file(file_name):
     fat_dsc = calc_dsc_from_cm(cm, 1)
     return bone_dsc, fat_dsc
 
+
 def calculate_dsc_for_all():
     """
         Format of output file: image name,bone dsc,fat dsc
@@ -135,6 +146,7 @@ def calculate_dsc_for_all():
             if bone_dsc == None:
                 continue
             write_f.write("{},{},{}\n".format(folder, bone_dsc, fat_dsc))
+
 
 def create_dsc_graphs():
     if prediction_path == None:
@@ -175,7 +187,7 @@ if __name__ == '__main__':
         print_menu()
         input_op = input()
         if input_op == '1':
-            get_confusion_matrix(print_graph = True, normalize_mat = True)
+            get_confusion_matrix(print_graph=True, normalize_mat=True)
         elif input_op == '2':
             change_pred_dir()
         elif input_op == '3':

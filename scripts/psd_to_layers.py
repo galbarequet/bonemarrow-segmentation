@@ -6,7 +6,7 @@ from PIL import Image
 from psd_tools import PSDImage
 
 def psd_to_layers(psd_dir, save_dir):
-    raw_image_dir_path = os.path.join(save_dir, "raw_image")
+    raw_image_dir_path = os.path.join(save_dir, "raw_images")
     background_dir_path = os.path.join(save_dir, "background")
     fat_dir_path = os.path.join(save_dir, "fat")
     bones_dir_path = os.path.join(save_dir, "bones")

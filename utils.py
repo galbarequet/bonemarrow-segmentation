@@ -1,6 +1,22 @@
 import numpy as np
 
 
+def calculate_bonemarrow_density_error(y_pred, y_true, eps=1e-3):
+    pred_bone_pixels = y_pred == 1
+    pred_tissue_pixels = y_pred != 0
+
+    pred_bone_density = (np.sum(pred_bone_pixels) + eps) / (np.sum(pred_tissue_pixels) + eps)
+
+    true_bone_pixels = y_true == 1
+    true_tissue_pixels = y_true != 0
+
+    true_bone_density = (np.sum(true_bone_pixels) + eps) / (np.sum(true_tissue_pixels) + eps)
+
+    error = np.abs(pred_bone_density - true_bone_density) / true_bone_density
+
+    return error
+
+
 def remove_lowest_confidence(y_pred):
     """
     Zeros the channel with lower confidence in prediction. Use this if you want to have an exclusive label per pixel
@@ -9,12 +25,16 @@ def remove_lowest_confidence(y_pred):
     y_pred[:, 1, y_pred[0, 0] >= y_pred[0, 1]] = 0
 
 
-def dsc(y_pred, y_true, eps=1e-3):
-    y_pred = np.round(y_pred).astype(int)
-    y_true = np.round(y_true).astype(int)
-    bone_dsc = (2*np.sum(y_pred[0] * y_true[0]) + eps) / ((np.sum(y_true[0]) + np.sum(y_pred[0])) + eps)
-    fat_dsc = (2*np.sum(y_pred[1] * y_true[1]) + eps) / ((np.sum(y_true[1]) + np.sum(y_pred[1])) + eps)
-    return bone_dsc, fat_dsc
+def dsc(y_pred, y_true, eps=1e-3, categories=4):
+    dscs = []
+
+    for i in range(categories):
+        pred_category = y_pred == i
+        true_category = y_true == i
+        dsc = (2 * np.sum(pred_category * true_category) + eps) / ((np.sum(pred_category) + np.sum(true_category)) + eps)
+        dscs.append(dsc)
+
+    return tuple(dscs)
 
 
 def outline(image, mask, color):
@@ -27,18 +47,19 @@ def outline(image, mask, color):
 
 
 def create_seg_image(seg):
-    seg = seg*100
-    seg = np.concatenate((seg, np.zeros((1, seg.shape[1], seg.shape[2]))))
-    seg = seg.transpose((1, 2, 0))
-    return seg.astype(np.uint8)
+    bone_seg = seg == 1
+    fat_seg = seg == 2
+    tissue_seg = seg == 3
+    seg = np.stack((bone_seg, fat_seg, tissue_seg), axis=2)
+    #seg = seg.transpose((1, 2, 0))
+    return seg.astype(np.uint8) * 100
 
 
-def create_error_image(pred_layer, true_layer):
-    diff = pred_layer - true_layer
-    error = np.stack((diff, -1*diff, np.zeros_like(pred_layer)))
+def create_error_image(pred, true, category):
+    false_positive = (pred == category) * (true != category)
+    false_negative = (pred != category) * (true == category)
 
-    error = np.maximum(error, 0) * 255
-    error = error.transpose((1, 2, 0))
+    error = np.stack((false_positive, false_negative, np.zeros_like(pred)), axis=2) * 100
 
     return error.astype(np.uint8)
 

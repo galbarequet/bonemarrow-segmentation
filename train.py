@@ -2,9 +2,10 @@ import argparse
 import os
 import pickle
 
+import numpy
 import numpy as np
 import torch
-from torch.nn import BCELoss
+from torch.nn import CrossEntropyLoss
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -12,7 +13,7 @@ from hannahmontananet import HannahMontanaNet
 
 from dataset import BoneMarrowDataset as Dataset
 from transform import transforms
-from utils import dsc, remove_lowest_confidence
+from utils import dsc, calculate_bonemarrow_density_error
 import sliding_window
 
 
@@ -29,24 +30,32 @@ def main(args):
     hannahmontana_net.to(device)
     sliding_window_predictor = sliding_window.SlidingWindow(hannahmontana_net, args.crop_size, args.step_size)
 
-    loss_func = BCELoss()
+    loss_func = CrossEntropyLoss()
     best_validation_loss = 1.0
+    best_bone_dsc = 0
+    best_bone_density = 5000
 
     optimizer = optim.Adam(hannahmontana_net.parameters(), lr=args.lr)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=args.scheduler_factor,
+                                                     patience=args.scheduler_patience)
 
     loss_train = []
     loss_valid = []
     loss_train_mean = []
     loss_valid_mean = []
-    validation_fat_layer_dsc = []
-    validation_bone_layer_dsc = []
+
+    validation_density_error = []
+    validation_background_dsc = []
+    validation_bone_dsc = []
+    validation_fat_dsc = []
+    validation_tissue_dsc = []
 
     step = 0
 
     for epoch in tqdm(range(args.epochs), total=args.epochs):
         if epoch % 10 == 0:
-            save_stats(args, phase_samples, validation_bone_layer_dsc,
-                       validation_fat_layer_dsc, loss_train_mean, loss_valid_mean)
+            save_stats(args, phase_samples, validation_density_error, loss_train_mean, loss_valid_mean, validation_background_dsc,
+                       validation_bone_dsc, validation_fat_dsc, validation_tissue_dsc)
 
         for phase in ["train", "valid"]:
             if phase == "train":
@@ -75,11 +84,12 @@ def main(args):
                     loss = loss_func(y_pred, y_true)
 
                     if phase == "valid":
+                        scheduler.step(loss)
                         loss_valid.append(loss.item())
                         y_pred_np = y_pred.detach().cpu().numpy()
-                        remove_lowest_confidence(y_pred_np)
+
                         validation_pred.extend(
-                            [y_pred_np[s] for s in range(y_pred_np.shape[0])]
+                            [np.argmax(y_pred_np[s], axis=0) for s in range(y_pred_np.shape[0])]
                         )
                         y_true_np = y_true.detach().cpu().numpy()
                         validation_true.extend(
@@ -96,34 +106,57 @@ def main(args):
                 loss_train = []
 
             if phase == "valid":
-                bone_dsc, fat_dsc = zip(*calculate_dsc(
+                bone_density_error = calculate_bone_density_error_validation(
                         validation_pred,
                         validation_true)
-                )
-                validation_bone_layer_dsc.append(np.mean(bone_dsc))
-                validation_fat_layer_dsc.append(np.mean(fat_dsc))
+
+                background_dsc, bone_dsc, fat_dsc, tissue_dsc = zip(*calculate_dsc(validation_pred, validation_true))
+
+                validation_density_error.append(np.mean(bone_density_error))
+                validation_background_dsc.append(numpy.mean(background_dsc))
+                validation_bone_dsc.append(numpy.mean(bone_dsc))
+                validation_fat_dsc.append(numpy.mean(fat_dsc))
+                validation_tissue_dsc.append(numpy.mean(tissue_dsc))
+
+
                 print('validation loss is {}'.format(loss.item()))
+                print('mean bone density error is {}%'.format(np.mean(bone_density_error) * 100))
+                print('mean background dsc {}'.format(np.mean(background_dsc)))
                 print('mean bone dsc {}'.format(np.mean(bone_dsc)))
                 print('mean fat dsc {}'.format(np.mean(fat_dsc)))
+                print('mean tissue dsc {}'.format(np.mean(tissue_dsc)))
+
                 if loss.item() < best_validation_loss:
                     best_validation_loss = loss.item()
-                    torch.save(hannahmontana_net.state_dict(), os.path.join(args.weights, "unet.pt"))
+                    torch.save(hannahmontana_net.state_dict(), os.path.join(args.weights, "unet_best_loss.pt"))
+                if np.mean(bone_density_error) < best_bone_density:
+                    best_bone_density = np.mean(bone_density_error)
+                    torch.save(hannahmontana_net.state_dict(), os.path.join(args.weights, "unet_best_density.pt"))
+                if np.mean(bone_dsc) > best_bone_dsc:
+                    best_bone_dsc = np.mean(bone_dsc)
+                    torch.save(hannahmontana_net.state_dict(), os.path.join(args.weights, "unet_best_bone_dsc.pt"))
+
+
                 loss_valid_mean.append(np.mean(loss_valid))
                 loss_valid = []
                 torch.save(hannahmontana_net.state_dict(), os.path.join(args.weights, "latest_unet.pt"))
 
     print("Best validation loss: {:4f}".format(best_validation_loss))
-    save_stats(args, phase_samples, validation_bone_layer_dsc,
-               validation_fat_layer_dsc, loss_train_mean, loss_valid_mean)
+    save_stats(args, phase_samples, validation_density_error, loss_train_mean, loss_valid_mean,
+               validation_background_dsc,
+               validation_bone_dsc, validation_fat_dsc, validation_tissue_dsc)
 
 
-def save_stats(args, dataset, bone_layer_dsc, fat_layer_dsc, train_loss, valid_loss):
+def save_stats(args, dataset, validation_density_error, train_loss, valid_loss, background_dsc, bone_dsc, fat_dsc, tissue_dsc):
     stats = {
         'dataset': dataset,
-        'bone_dsc': bone_layer_dsc,
-        'fat_dsc': fat_layer_dsc,
+        'bone_density_error': validation_density_error,
         'train_loss': train_loss,
-        'valid_loss': valid_loss
+        'valid_loss': valid_loss,
+        'backgrounds_dsc': background_dsc,
+        'bone_dsc': bone_dsc,
+        'fat_dsc': fat_dsc,
+        'tissue_dsc': tissue_dsc,
     }
     with open(os.path.join(args.stats, 'stats.pkl'), 'wb') as f:
         pickle.dump(stats, f)
@@ -177,6 +210,15 @@ def datasets(args):
     return train, valid
 
 
+def calculate_bone_density_error_validation(validation_pred, validation_true):
+    error_list = []
+    for i in range(len(validation_pred)):
+        y_pred = validation_pred[i]
+        y_true = validation_true[i]
+        error_list.append(calculate_bonemarrow_density_error(y_pred, y_true))
+    return error_list
+
+
 def calculate_dsc(validation_pred, validation_true):
     dsc_list = []
     for i in range(len(validation_pred)):
@@ -199,7 +241,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--batch-size",
         type=int,
-        default=16,
+        default=4,
         help="input batch size for training (default: 16)",
     )
     parser.add_argument(
@@ -211,7 +253,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--lr",
         type=float,
-        default=0.00001,
+        default=0.0001,
         help="initial learning rate (default: 0.00001)",
     )
     parser.add_argument(
@@ -276,5 +318,17 @@ if __name__ == "__main__":
         type=bool,
         default=True,
         help="does fat override bones?",
+    )
+    parser.add_argument(
+        "--scheduler-factor",
+        type=float,
+        default=0.5,
+        help="The factor that the lr is reduced",
+    )
+    parser.add_argument(
+        "--scheduler-patience",
+        type=int,
+        default=10,
+        help="The factor that the lr is reduced",
     )
     main(parser.parse_args())

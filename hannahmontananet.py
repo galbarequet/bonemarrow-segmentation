@@ -27,7 +27,7 @@ def createDeepLabv3(outputchannels=2):
 
 class HannahMontanaNet(nn.Module):
 
-    def __init__(self, out_channels=2, deeplav_features=16, unet_features=16, post_processing_features=64):
+    def __init__(self, out_channels=4, deeplav_features=16, unet_features=16, post_processing_features=64):
         super(HannahMontanaNet, self).__init__()
 
         self.out_channels = out_channels #maybe remove
@@ -60,7 +60,7 @@ class HannahMontanaNet(nn.Module):
 
         out = self.final_conv(out)
 
-        return torch.sigmoid(out)
+        return out
 
     @staticmethod
     def _block(in_channels, features, name):

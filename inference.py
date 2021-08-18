@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from dataset import BoneMarrowDataset as Dataset
-from utils import create_seg_image, dsc, outline, remove_lowest_confidence, create_error_image
+from utils import create_seg_image, dsc, outline, create_error_image, calculate_bonemarrow_density_error
 
 from hannahmontananet import HannahMontanaNet
 import sliding_window
@@ -46,9 +46,7 @@ def main(args):
             # y_pred = net(x)
             y_pred = sliding_window_predictor.predict_image(x)
             y_pred_np = y_pred.detach().cpu().numpy()
-            remove_lowest_confidence(y_pred_np)
-            y_pred_np = np.round(y_pred_np).astype(int)
-            pred_list.extend([y_pred_np[s] for s in range(y_pred_np.shape[0])])
+            pred_list.extend([np.argmax(y_pred_np[s], axis=0) for s in range(y_pred_np.shape[0])])
 
             y_true_np = y_true.detach().cpu().numpy()
             true_list.extend([y_true_np[s] for s in range(y_true_np.shape[0])])
@@ -58,12 +56,20 @@ def main(args):
 
     n = len(input_list)
 
-    dsc_bone_dist, dsc_fat_dist = dsc_distribution(pred_list, true_list)
+    dsc_background_dist, dsc_bone_dist, dsc_fat_dist, dsc_tissue_dist = dsc_distribution(pred_list, true_list)
+    dsc_density_error = calc_bone_density_error_distribution(pred_list, true_list)
 
+    dsc_background_dist_plot = plot_dsc(dsc_background_dist)
+    imsave(os.path.join(args.figure, 'dsc_backgorund.png'), dsc_background_dist_plot)
     dsc_bone_dist_plot = plot_dsc(dsc_bone_dist)
     imsave(os.path.join(args.figure, 'dsc_bone.png'), dsc_bone_dist_plot)
     dsc_fat_dist_plot = plot_dsc(dsc_fat_dist)
     imsave(os.path.join(args.figure, 'dsc_fat.png'), dsc_fat_dist_plot)
+    dsc_tissue_dist_plot = plot_dsc(dsc_tissue_dist)
+    imsave(os.path.join(args.figure, 'dsc_tissue.png'), dsc_tissue_dist_plot)
+    imsave(os.path.join(args.figure, 'dsc_tissue.png'), dsc_tissue_dist_plot)
+    density_error_dist_plot = plot_dsc(dsc_density_error)
+    imsave(os.path.join(args.figure, 'density_error.png'), density_error_dist_plot)
 
     for p in range(n):
         x = input_list[p].transpose(1, 2, 0).astype(np.uint8)
@@ -111,18 +117,10 @@ def main(args):
         imsave(os.path.join(folder_path, "pred.png"), create_seg_image(y_pred))
         imsave(os.path.join(folder_path, "true.png"), create_seg_image(y_true))
 
-        imsave(os.path.join(folder_path, "bones_error.png"), create_error_image(y_pred[0], y_true[0]))
-        imsave(os.path.join(folder_path, "fat_error.png"), create_error_image(y_pred[1], y_true[1]))
-
-        # Outline way
-        folder_path = os.path.join(args.predictions, "outline")
-        image = x
-        image = outline(image, y_pred[0], color=[255, 0, 0])
-        image = outline(image, y_true[0], color=[0, 255, 0])
-        filename = "{}.png".format(p)
-        filepath = os.path.join(folder_path, filename)
-        imsave(filepath, image)
-        print("finished: {}".format(p))
+        imsave(os.path.join(folder_path, "background_error.png"), create_error_image(y_pred, y_true, 0))
+        imsave(os.path.join(folder_path, "bones_error.png"), create_error_image(y_pred, y_true, 1))
+        imsave(os.path.join(folder_path, "fat_error.png"), create_error_image(y_pred, y_true, 2))
+        imsave(os.path.join(folder_path, "tissue_error.png"), create_error_image(y_pred, y_true, 3))
 
 
 def data_loader(args):
@@ -130,7 +128,7 @@ def data_loader(args):
         images_dir=args.images,
         subset="validation",
         random_sampling=False,
-        validation_cases=None,
+        validation_cases=7,
         fat_overrides_bone=args.fat_overrides
     )
     loader = DataLoader(
@@ -144,13 +142,25 @@ def data_loader(args):
 
 def dsc_distribution(pred_list, true_list):
     n = len(pred_list)
+    dsc_background_dict = {}
     dsc_bone_dict = {}
     dsc_fat_dict = {}
+    dsc_tissue_dict = {}
     for p in range(n):
         y_pred = pred_list[p]
         y_true = true_list[p]
-        dsc_bone_dict[p], dsc_fat_dict[p] = dsc(y_pred, y_true)
-    return dsc_bone_dict, dsc_fat_dict
+        dsc_background_dict[p], dsc_bone_dict[p], dsc_fat_dict[p], dsc_tissue_dict[p] = \
+            dsc(y_pred, y_true)
+    return dsc_background_dict, dsc_bone_dict, dsc_fat_dict, dsc_tissue_dict
+
+def calc_bone_density_error_distribution(pred_list, true_list):
+    n = len(pred_list)
+    bone_density_error_dict = {}
+    for p in range(n):
+        y_pred = pred_list[p]
+        y_true = true_list[p]
+        bone_density_error_dict[p] = calculate_bonemarrow_density_error(y_pred, y_true)
+    return bone_density_error_dict
 
 
 def plot_dsc(dsc_dist):

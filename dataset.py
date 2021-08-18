@@ -11,21 +11,27 @@ class BoneMarrowDataset(Dataset):
     """Bone Marrow dataset for fat and bones segmentation"""
 
     in_channels = 3
-    out_channels = 2
+    out_channels = 4
 
     @staticmethod
-    def create_mask(bone_layer, fat_layer, fat_overrides_bone):
+    def create_mask(bone_layer, fat_layer, tissue_layer, fat_overrides_bone):
         bone_layer = (bone_layer/255).astype('uint8')
         fat_layer = (fat_layer/255).astype('uint8')
+        tissue_layer = (tissue_layer / 255).astype('uint8')
 
         if fat_overrides_bone:
             bone_layer[bone_layer == fat_layer] = 0
         else:
             fat_layer[bone_layer == fat_layer] = 0
 
+        tissue_layer[tissue_layer == fat_layer] = 0
+        tissue_layer[tissue_layer == bone_layer] = 0
 
-        mask = np.stack([bone_layer, fat_layer])
-        mask = mask.transpose(1, 2, 0)
+        mask = bone_layer + 2 * fat_layer + 3*tissue_layer
+
+        mask = np.expand_dims(mask, axis=2)
+        #mask = np.stack([bone_layer, fat_layer])
+        #mask = mask.transpose(1, 2, 0)
         return mask
 
     @staticmethod
@@ -34,7 +40,8 @@ class BoneMarrowDataset(Dataset):
         labels = []
         names = []
         crop_masks = []
-        raw_image_dir = 'raw_image'
+        background_image_dir = 'background'
+        raw_image_dir = 'raw_images'
         bone_layer_dir = 'bones'
         fat_layer_dir = 'fat'
         mask_dir = 'masks'
@@ -46,12 +53,14 @@ class BoneMarrowDataset(Dataset):
 
             fat_layer = np.array(imread(os.path.join(os.path.join(image_dir, fat_layer_dir), filename), as_gray=True))
 
+            tissue_layer = np.array(imread(os.path.join(os.path.join(image_dir, background_image_dir), filename), as_gray=True))
+
             crop_mask = np.array(imread(os.path.join(os.path.join(image_dir, mask_dir), filename), as_gray=True))
 
             names.append(filename)
             data.append(raw_img)
             crop_masks.append(crop_mask)
-            labels.append(BoneMarrowDataset.create_mask(bone_layer, fat_layer, fat_overrides_bone))
+            labels.append(BoneMarrowDataset.create_mask(bone_layer, fat_layer, tissue_layer, fat_overrides_bone))
 
         return data, labels, names, crop_masks
 
@@ -123,7 +132,8 @@ class BoneMarrowDataset(Dataset):
         label = label.transpose(2, 0, 1)
 
         image_tensor = torch.from_numpy(image.astype(np.float32))
-        label_tensor = torch.from_numpy(label.astype(np.float32))
+        label_tensor = torch.from_numpy(label.astype(np.int)).long()
+        label_tensor = torch.squeeze(label_tensor)
 
         # return tensors
         return image_tensor, label_tensor

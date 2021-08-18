@@ -110,41 +110,43 @@ def main(args):
                         validation_true)
 
                 background_dsc, bone_dsc, fat_dsc, tissue_dsc = zip(*calculate_dsc(validation_pred, validation_true))
+                mean_bone_density_error = np.mean(bone_density_error)
+                mean_background_dsc = np.mean(background_dsc)
+                mean_bone_dsc = np.mean(bone_dsc)
+                mean_fat_dsc = np.mean(fat_dsc)
+                mean_tissue_dsc = np.mean(tissue_dsc)
 
-                validation_density_error.append(np.mean(bone_density_error))
-                validation_background_dsc.append(numpy.mean(background_dsc))
-                validation_bone_dsc.append(numpy.mean(bone_dsc))
-                validation_fat_dsc.append(numpy.mean(fat_dsc))
-                validation_tissue_dsc.append(numpy.mean(tissue_dsc))
-
+                validation_density_error.append(mean_bone_density_error)
+                validation_background_dsc.append(mean_background_dsc)
+                validation_bone_dsc.append(mean_bone_dsc)
+                validation_fat_dsc.append(mean_fat_dsc)
+                validation_tissue_dsc.append(mean_tissue_dsc)
 
                 print('validation loss is {}'.format(loss.item()))
-                print('mean bone density error is {}%'.format(np.mean(bone_density_error) * 100))
-                print('mean background dsc {}'.format(np.mean(background_dsc)))
-                print('mean bone dsc {}'.format(np.mean(bone_dsc)))
-                print('mean fat dsc {}'.format(np.mean(fat_dsc)))
-                print('mean tissue dsc {}'.format(np.mean(tissue_dsc)))
+                print('mean bone density error is {}%'.format(mean_bone_density_error * 100))
+                print('mean background dsc {}'.format(mean_background_dsc))
+                print('mean bone dsc {}'.format(mean_bone_dsc))
+                print('mean fat dsc {}'.format(mean_fat_dsc))
+                print('mean tissue dsc {}'.format(mean_tissue_dsc))
 
                 if loss.item() < best_validation_loss:
                     best_validation_loss = loss.item()
-                    torch.save(hannahmontana_net.state_dict(), os.path.join(args.weights, "unet_best_loss.pt"))
-                if np.mean(bone_density_error) < best_bone_density:
-                    best_bone_density = np.mean(bone_density_error)
-                    torch.save(hannahmontana_net.state_dict(), os.path.join(args.weights, "unet_best_density.pt"))
-                if np.mean(bone_dsc) > best_bone_dsc:
-                    best_bone_dsc = np.mean(bone_dsc)
-                    torch.save(hannahmontana_net.state_dict(), os.path.join(args.weights, "unet_best_bone_dsc.pt"))
-
+                    torch.save(hannahmontana_net.state_dict(), os.path.join(args.weights, "net_best_loss.pt"))
+                if mean_bone_density_error < best_bone_density:
+                    best_bone_density = mean_bone_density_error
+                    torch.save(hannahmontana_net.state_dict(), os.path.join(args.weights, "net_best_density.pt"))
+                if mean_bone_dsc > best_bone_dsc:
+                    best_bone_dsc = mean_bone_dsc
+                    torch.save(hannahmontana_net.state_dict(), os.path.join(args.weights, "net_best_bone_dsc.pt"))
 
                 loss_valid_mean.append(np.mean(loss_valid))
                 loss_valid = []
-                try_save_model(args, hannahmontana_net.state_dict(), os.path.join(args.weights, "latest_unet.pt"))
+                try_save_model(args, hannahmontana_net.state_dict(), os.path.join(args.weights, "latest_net.pt"))
 
     print("Best validation loss: {:4f}".format(best_validation_loss))
     save_stats(args, phase_samples, validation_density_error, loss_train_mean, loss_valid_mean,
                validation_background_dsc,
                validation_bone_dsc, validation_fat_dsc, validation_tissue_dsc)
-
 
 
 def try_save_model(args, obj, path):
@@ -163,7 +165,8 @@ def try_save_model(args, obj, path):
             print('skipping save...')
 
 
-def save_stats(args, dataset, validation_density_error, train_loss, valid_loss, background_dsc, bone_dsc, fat_dsc, tissue_dsc):
+def save_stats(args, dataset, validation_density_error, train_loss, valid_loss,
+               background_dsc, bone_dsc, fat_dsc, tissue_dsc):
     stats = {
         'dataset': dataset,
         'bone_density_error': validation_density_error,

@@ -1,7 +1,6 @@
 import argparse
 import json
 import os
-from PIL import Image
 import numpy as np
 import torch
 import matplotlib
@@ -11,8 +10,9 @@ from skimage.io import imsave
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+from bonemarrow_label import BoneMarrowLabel
 from dataset import BoneMarrowDataset as Dataset
-from utils import create_seg_image, dsc, outline, create_error_image, calculate_bonemarrow_density_error
+from utils import create_seg_image, dsc, create_error_image, calculate_bonemarrow_density_error
 
 from hannahmontananet import HannahMontanaNet
 import sliding_window
@@ -43,7 +43,6 @@ def main(args):
             x, y_true = data
             x, y_true = x.to(device), y_true.to(device)
 
-            # y_pred = net(x)
             y_pred = sliding_window_predictor.predict_image(x)
             y_pred_np = y_pred.detach().cpu().numpy()
             pred_list.extend([np.argmax(y_pred_np[s], axis=0) for s in range(y_pred_np.shape[0])])
@@ -75,11 +74,12 @@ def main(args):
         x = input_list[p].transpose(1, 2, 0).astype(np.uint8)
         y_pred = pred_list[p]
         y_true = true_list[p]
-        image_shape = y_pred[0].shape
 
-        # Note: calculates the confusion matrix like Moni described it.
-        current_true_list = [y_true[0], y_true[1], np.ones(image_shape) - y_true[0] - y_true[1]]
-        current_pred_list = [y_pred[0], y_pred[1], np.ones(image_shape) - y_pred[0] - y_pred[1]]
+        # Note: calculates the confusion matrix
+        current_true_list = [y_true == BoneMarrowLabel.BONE, y_true == BoneMarrowLabel.FAT,
+                             y_true == BoneMarrowLabel.OTHER, y_true == BoneMarrowLabel.BACKGROUND]
+        current_pred_list = [y_pred == BoneMarrowLabel.BONE, y_pred == BoneMarrowLabel.FAT,
+                             y_pred == BoneMarrowLabel.OTHER, y_pred == BoneMarrowLabel.BACKGROUND]
         confusion_matrix = [[0] * len(current_pred_list) for i in range(len(current_true_list))]
         for i in range(len(current_true_list)):
             for j in range(len(current_pred_list)):
@@ -91,25 +91,7 @@ def main(args):
         with open(os.path.join(folder_path, f'stats - {original_filename}.json'), 'w', encoding='utf-8') as f:
             json.dump(confusion_matrix, f, ensure_ascii=False, indent=4)
 
-        # Note: calculate the relative volume of bone/fat from true background size
-        # percentages = {
-        #     'true': {},
-        #     'pred': {},
-        #     'diff': {}
-        # }
-        # true_background_size = np.count_nonzero(y_true[0] + y_true[1])
-        # for i, label_type in enumerate(['bone', 'fat']):
-        #     percentages['pred'][label_type] = 100 * np.count_nonzero(y_pred[i]) / true_background_size
-        #     percentages['true'][label_type] = 100 * np.count_nonzero(y_true[i]) / true_background_size
-        #     percentages['diff'][label_type] = percentages['pred'][label_type] - percentages['true'][label_type]
-
-        # original_filename = loader.dataset.names[p].rsplit('.')[0]
-        # folder_path = os.path.join(args.predictions, original_filename)
-        # os.makedirs(folder_path, exist_ok=True)
-        # with open(os.path.join(folder_path, f'stats - {original_filename}.json'), 'w', encoding='utf-8') as f:
-        #     json.dump(percentages, f, ensure_ascii=False, indent=4)
-
-        # Sagi's way
+        # save segmented images and respective errors
         folder_path = os.path.join(args.predictions, original_filename)
         os.makedirs(folder_path, exist_ok=True)
 
@@ -117,10 +99,14 @@ def main(args):
         imsave(os.path.join(folder_path, "pred.png"), create_seg_image(y_pred))
         imsave(os.path.join(folder_path, "true.png"), create_seg_image(y_true))
 
-        imsave(os.path.join(folder_path, "background_error.png"), create_error_image(y_pred, y_true, 0))
-        imsave(os.path.join(folder_path, "bones_error.png"), create_error_image(y_pred, y_true, 1))
-        imsave(os.path.join(folder_path, "fat_error.png"), create_error_image(y_pred, y_true, 2))
-        imsave(os.path.join(folder_path, "tissue_error.png"), create_error_image(y_pred, y_true, 3))
+        imsave(os.path.join(folder_path, "background_error.png"),
+               create_error_image(y_pred, y_true, BoneMarrowLabel.BACKGROUND))
+        imsave(os.path.join(folder_path, "bones_error.png"),
+               create_error_image(y_pred, y_true, BoneMarrowLabel.BONE))
+        imsave(os.path.join(folder_path, "fat_error.png"),
+               create_error_image(y_pred, y_true, BoneMarrowLabel.FAT))
+        imsave(os.path.join(folder_path, "tissue_error.png"),
+               create_error_image(y_pred, y_true, BoneMarrowLabel.OTHER))
 
 
 def data_loader(args):
@@ -128,7 +114,7 @@ def data_loader(args):
         images_dir=args.images,
         subset="validation",
         random_sampling=False,
-        validation_cases=7,
+        validation_cases=None,
         fat_overrides_bone=args.fat_overrides
     )
     loader = DataLoader(
@@ -152,6 +138,7 @@ def dsc_distribution(pred_list, true_list):
         dsc_background_dict[p], dsc_bone_dict[p], dsc_fat_dict[p], dsc_tissue_dict[p] = \
             dsc(y_pred, y_true)
     return dsc_background_dict, dsc_bone_dict, dsc_fat_dict, dsc_tissue_dict
+
 
 def calc_bone_density_error_distribution(pred_list, true_list):
     n = len(pred_list)

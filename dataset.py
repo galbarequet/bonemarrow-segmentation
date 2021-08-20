@@ -1,3 +1,4 @@
+from bonemarrow_label import BoneMarrowLabel
 import os
 import random
 
@@ -14,24 +15,24 @@ class BoneMarrowDataset(Dataset):
     out_channels = 4
 
     @staticmethod
-    def create_mask(bone_layer, fat_layer, tissue_layer, fat_overrides_bone):
+    def create_mask(bone_layer, fat_layer, other_tissue_layer, fat_overrides_bone):
         bone_layer = (bone_layer/255).astype('uint8')
         fat_layer = (fat_layer/255).astype('uint8')
-        tissue_layer = (tissue_layer / 255).astype('uint8')
+        other_tissue_layer = (other_tissue_layer / 255).astype('uint8')
 
         if fat_overrides_bone:
             bone_layer[bone_layer == fat_layer] = 0
         else:
             fat_layer[bone_layer == fat_layer] = 0
 
-        tissue_layer[tissue_layer == fat_layer] = 0
-        tissue_layer[tissue_layer == bone_layer] = 0
+        # Note: other_tissue_layer is received is relevant foreground pixels - need to remove bone+fat from it
+        other_tissue_layer[other_tissue_layer == fat_layer] = 0
+        other_tissue_layer[other_tissue_layer == bone_layer] = 0
 
-        mask = bone_layer + 2 * fat_layer + 3*tissue_layer
+        mask = (BoneMarrowLabel.BONE * bone_layer + BoneMarrowLabel.FAT * fat_layer +
+                BoneMarrowLabel.OTHER * other_tissue_layer)
 
         mask = np.expand_dims(mask, axis=2)
-        #mask = np.stack([bone_layer, fat_layer])
-        #mask = mask.transpose(1, 2, 0)
         return mask
 
     @staticmethod
@@ -53,7 +54,8 @@ class BoneMarrowDataset(Dataset):
 
             fat_layer = np.array(imread(os.path.join(os.path.join(image_dir, fat_layer_dir), filename), as_gray=True))
 
-            tissue_layer = np.array(imread(os.path.join(os.path.join(image_dir, background_image_dir), filename), as_gray=True))
+            tissue_layer = np.array(imread(os.path.join(os.path.join(image_dir, background_image_dir), filename),
+                                           as_gray=True))
 
             crop_mask = np.array(imread(os.path.join(os.path.join(image_dir, mask_dir), filename), as_gray=True))
 
@@ -75,8 +77,6 @@ class BoneMarrowDataset(Dataset):
         fat_overrides_bone=True
     ):
         assert subset in ["all", "train", "validation"]
-
-
 
         # read images
         self.images, self.labels, self.names, self.crop_masks = self.load_dataset(images_dir, fat_overrides_bone)

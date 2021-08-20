@@ -67,18 +67,18 @@ def main(args):
     n = len(input_list)
 
     dsc_background_dist, dsc_bone_dist, dsc_fat_dist, dsc_tissue_dist = dsc_distribution(pred_list, true_list)
-    dsc_density_error = calc_bone_density_error_distribution(pred_list, true_list)
+    density_error_dist = calc_bone_density_error_distribution(pred_list, true_list)
 
-    dsc_background_dist_plot = plot_dsc(dsc_background_dist)
+    dsc_background_dist_plot = plot_param_dist(dsc_background_dist)
     imsave(os.path.join(args.figure, 'dsc_backgorund.png'), dsc_background_dist_plot)
-    dsc_bone_dist_plot = plot_dsc(dsc_bone_dist)
+    dsc_bone_dist_plot = plot_param_dist(dsc_bone_dist)
     imsave(os.path.join(args.figure, 'dsc_bone.png'), dsc_bone_dist_plot)
-    dsc_fat_dist_plot = plot_dsc(dsc_fat_dist)
+    dsc_fat_dist_plot = plot_param_dist(dsc_fat_dist)
     imsave(os.path.join(args.figure, 'dsc_fat.png'), dsc_fat_dist_plot)
-    dsc_tissue_dist_plot = plot_dsc(dsc_tissue_dist)
+    dsc_tissue_dist_plot = plot_param_dist(dsc_tissue_dist)
     imsave(os.path.join(args.figure, 'dsc_tissue.png'), dsc_tissue_dist_plot)
     imsave(os.path.join(args.figure, 'dsc_tissue.png'), dsc_tissue_dist_plot)
-    density_error_dist_plot = plot_dsc(dsc_density_error)
+    density_error_dist_plot = plot_param_dist(density_error_dist, param_name='Density error')
     imsave(os.path.join(args.figure, 'density_error.png'), density_error_dist_plot)
 
     for p in range(n):
@@ -165,11 +165,15 @@ def calc_bone_density_error_distribution(pred_list, true_list):
     return bone_density_error_dict
 
 
-def plot_dsc(dsc_dist):
-    y_positions = np.arange(len(dsc_dist))
-    dsc_dist = sorted(dsc_dist.items(), key=lambda x: x[1])
-    values = [x[1] for x in dsc_dist]
-    labels = [x[0] for x in dsc_dist]
+def plot_param_dist(dist, param_name="Dice coefficient"):
+    """
+        Return the plot of the parameter distribution.
+        Note: the parameter needs to get value from (0,1).
+    """
+    y_positions = np.arange(len(dist))
+    dist = sorted(dist.items(), key=lambda x: x[1])
+    values = [x[1] for x in dist]
+    labels = [x[0] for x in dist]
     fig = plt.figure(figsize=(12, 8))
     canvas = FigureCanvasAgg(fig)
     plt.barh(y_positions, values, align="center", color="skyblue")
@@ -178,7 +182,7 @@ def plot_dsc(dsc_dist):
     plt.xlim([0.0, 1.0])
     plt.gca().axvline(np.mean(values), color="tomato", linewidth=2)
     plt.gca().axvline(np.median(values), color="forestgreen", linewidth=2)
-    plt.xlabel("Dice coefficient", fontsize="x-large")
+    plt.xlabel(param_name, fontsize="x-large")
     plt.gca().xaxis.grid(color="silver", alpha=0.5, linestyle="--", linewidth=1)
     plt.tight_layout()
     canvas.draw()

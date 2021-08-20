@@ -3,8 +3,8 @@ import numpy as np
 import seaborn as sn
 import pandas as pd
 import json
+import matplotlib
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_agg import FigureCanvasAgg
 # Relative importing
 import sys
 sys.path.append(os.getcwd())
@@ -22,6 +22,7 @@ def print_menu():
     print('3 - calculate learning graph')
     print('4 - calculate dsc stats')
     print('5 - create dsc graphs')
+    print('6 - show avg. confusion matrix')
     print('q - quit')
 
 
@@ -54,6 +55,21 @@ def get_confusion_matrix(path_con_mat=None, print_graph=False, normalize_mat=Tru
     if print_graph:
         print_confusion_matrix_graph(confusion_mat, normalize=normalize_mat)
     return confusion_mat
+
+
+def get_avg_normalized_confusion_matrix(print_graph=False):
+    global prediction_path
+    if prediction_path is None:
+        prediction_path = input('Insert path to predictions dir:\n')
+    name_to_confusion_matrix = {}
+    for i, filename in enumerate(os.listdir(prediction_path)):
+        with open(os.path.join(prediction_path, filename, f'stats - {filename}.json'), 'r', encoding='utf-8') as f:
+            name_to_confusion_matrix[filename] = normalize_confusion_matrix(json.load(f))
+    avg_confusion_matrix = np.average(list(name_to_confusion_matrix.values()), axis=0)
+    if print_graph:
+        # Normalizing just in case
+        print_confusion_matrix_graph(avg_confusion_matrix, normalize=True)
+    return avg_confusion_matrix
 
 
 def change_pred_dir():
@@ -198,6 +214,8 @@ if __name__ == '__main__':
             calculate_dsc_for_all()
         elif input_op == '5':
             create_dsc_graphs()
+        elif input_op == '6':
+            get_avg_normalized_confusion_matrix(print_graph=True)
         elif input_op == 'q':
             exit()
         else:

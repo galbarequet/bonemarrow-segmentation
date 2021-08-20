@@ -9,7 +9,7 @@ edge_size = 256
 step = 10
 
 image_dir = r'data_samples'
-raw_image_dir = 'fixed images'
+raw_image_dir = 'raw_images'
 background_dir = 'background'
 masks_dir = 'masks'
 
@@ -17,6 +17,7 @@ masks_dir = 'masks'
 raw_image_full_path = os.path.join(image_dir, raw_image_dir)
 back_image_full_path = os.path.join(image_dir, background_dir)
 masks_image_full_path = os.path.join(image_dir, masks_dir)
+os.makedirs(masks_image_full_path, exist_ok=True)
 for filename in os.listdir(raw_image_full_path):
     raw_img = np.array(color.rgb2gray(imread(os.path.join(raw_image_full_path, filename))))
     back_img = np.array(imread(os.path.join(back_image_full_path, filename)))

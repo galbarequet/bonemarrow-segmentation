@@ -47,19 +47,22 @@ def main(args):
             if args.baseline:
                 x = x.detach().numpy()
                 normal_image = x[0, ...].transpose(1, 2, 0).astype(np.uint8)
-                y_pred_np = np.array([segment_image(normal_image)])
+                y_pred_np = segment_image(normal_image)
                 y_true_np = y_true.detach().numpy()
                 x_np = x
             else:
                 x, y_true = x.to(device), y_true.to(device)
                 y_pred = sliding_window_predictor.predict_image(x)
-                y_pred_np = y_pred.detach().cpu().numpy()
+                y_pred_np = y_pred.detach().cpu().numpy()[0, ...]
+                y_pred_np = np.argmax(y_pred_np, axis=0)
                 x_np = x.detach().cpu().numpy()
                 y_true_np = y_true.detach().cpu().numpy()
 
-            true_list.extend([y_true_np[s] for s in range(y_true_np.shape[0])])
-            pred_list.extend([y_pred_np[s] for s in range(y_pred_np.shape[0])])
-            input_list.extend([x_np[s] for s in range(x_np.shape[0])])
+            y_true_np = y_true_np[0, ...]
+            x_np = x_np[0, ...]
+            true_list.append(y_true_np)
+            pred_list.append(y_pred_np)
+            input_list.append(x_np)
 
     n = len(input_list)
 

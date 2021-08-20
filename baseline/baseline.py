@@ -1,28 +1,28 @@
 import os
 import numpy as np
-from PIL import Image
 from skimage import filters
 from skimage.segmentation import flood
-from skimage.io import imsave
 import sys
 sys.path.append(os.getcwd())
 from bonemarrow_label import BoneMarrowLabel
-from utils import create_seg_image
 
 
 BLOCK_SIZE = 6
 
 
-def segment_image(image_data):
+def segment_image(image_data, print_progress = False):
     """
         Given an image array returns the segmented image
     """
     segmented_image = segment_by_color(image_data)
-    print("segmented image by color")
+    if print_progress:
+        print("segmented image by color")
     segmented_image = separate_fat_and_background(image_data, segmented_image)
-    print("segmented fat and background")
+    if print_progress:
+        print("segmented fat and background")
     segmented_image = seperate_bone_and_other(image_data, segmented_image)
-    print("segmented other and bone")
+    if print_progress:
+        print("segmented other and bone")
     return segmented_image
 
 

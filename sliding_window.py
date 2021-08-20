@@ -56,9 +56,11 @@ class SlidingWindow:
 
                 weights[:, :, start_x: end_x, start_y: end_y] += torch.ones(
                     size=(image.shape[0], self._network.out_channels, end_x - start_x, end_y - start_y),
-                    dtype=data_type, device=device) * (1 + self.weight_to_add_to_center)
+                    dtype=data_type, device=device)
 
-
+                weights[:, :, x_center_start: x_center_end, y_center_start: y_center_end] += torch.ones(
+                    size=(image.shape[0], self._network.out_channels, x_center_end - x_center_start, y_center_end - y_center_start),
+                    dtype=data_type, device=device) * self.weight_to_add_to_center
             self.progress_event.on_change(int(100 * start_x / h))
         self.progress_event.on_change(100)
 

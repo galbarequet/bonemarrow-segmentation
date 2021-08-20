@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 # Relative importing
 import sys
 sys.path.append(os.getcwd())
-from inference import plot_dsc
+from inference import plot_param_dist
 from skimage.io import imsave
 
 
@@ -190,9 +190,9 @@ def create_dsc_graphs():
         elif input_op == 'p':
             save_folder_path = input('Insert path to folder to save the graphs to.\n')
             os.makedirs(save_folder_path, exist_ok=True)
-            dsc_bone_dist_plot = plot_dsc(dict(zip(file_names, bone_dsc_list)))
+            dsc_bone_dist_plot = plot_param_dist(dict(zip(file_names, bone_dsc_list)))
             imsave(os.path.join(save_folder_path, 'dsc_bone.png'), dsc_bone_dist_plot)
-            dsc_fat_dist_plot = plot_dsc(dict(zip(file_names, fat_dsc_list)))
+            dsc_fat_dist_plot = plot_param_dist(dict(zip(file_names, fat_dsc_list)))
             imsave(os.path.join(save_folder_path, 'dsc_fat.png'), dsc_fat_dist_plot)
         elif input_op == 'q':
             return

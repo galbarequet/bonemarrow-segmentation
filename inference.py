@@ -9,6 +9,7 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 from skimage.io import imsave
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+from baseline.baseline import segment_image
 
 from bonemarrow_label import BoneMarrowLabel
 from dataset import BoneMarrowDataset as Dataset
@@ -26,13 +27,14 @@ def main(args):
     loader = data_loader(args)
 
     with torch.set_grad_enabled(False):
-        net = HannahMontanaNet(out_channels=Dataset.out_channels)
-        state_dict = torch.load(args.weights, map_location=device)
-        net.load_state_dict(state_dict)
-        net.eval()
-        net.to(device)
+        if not args.baseline:
+            net = HannahMontanaNet(out_channels=Dataset.out_channels)
+            state_dict = torch.load(args.weights, map_location=device)
+            net.load_state_dict(state_dict)
+            net.eval()
+            net.to(device)
 
-        sliding_window_predictor = sliding_window.SlidingWindow(net, args.crop_size, args.step_size)
+            sliding_window_predictor = sliding_window.SlidingWindow(net, args.crop_size, args.step_size)
 
         input_list = []
         pred_list = []
@@ -41,16 +43,22 @@ def main(args):
         for i, data in tqdm(enumerate(loader)):
             print(i)
             x, y_true = data
-            x, y_true = x.to(device), y_true.to(device)
 
-            y_pred = sliding_window_predictor.predict_image(x)
-            y_pred_np = y_pred.detach().cpu().numpy()
-            pred_list.extend([np.argmax(y_pred_np[s], axis=0) for s in range(y_pred_np.shape[0])])
+            if args.baseline:
+                x = x.detach().numpy()
+                normal_image = x[0, ...].transpose(1, 2, 0).astype(np.uint8)
+                y_pred_np = np.array([segment_image(normal_image)])
+                y_true_np = y_true.detach().numpy()
+                x_np = x
+            else:
+                x, y_true = x.to(device), y_true.to(device)
+                y_pred = sliding_window_predictor.predict_image(x)
+                y_pred_np = y_pred.detach().cpu().numpy()
+                x_np = x.detach().cpu().numpy()
+                y_true_np = y_true.detach().cpu().numpy()
 
-            y_true_np = y_true.detach().cpu().numpy()
             true_list.extend([y_true_np[s] for s in range(y_true_np.shape[0])])
-
-            x_np = x.detach().cpu().numpy()
+            pred_list.extend([y_pred_np[s] for s in range(y_pred_np.shape[0])])
             input_list.extend([x_np[s] for s in range(x_np.shape[0])])
 
     n = len(input_list)
@@ -74,27 +82,16 @@ def main(args):
         x = input_list[p].transpose(1, 2, 0).astype(np.uint8)
         y_pred = pred_list[p]
         y_true = true_list[p]
-
-        # Note: calculates the confusion matrix
-        current_true_list = [y_true == BoneMarrowLabel.BONE, y_true == BoneMarrowLabel.FAT,
-                             y_true == BoneMarrowLabel.OTHER, y_true == BoneMarrowLabel.BACKGROUND]
-        current_pred_list = [y_pred == BoneMarrowLabel.BONE, y_pred == BoneMarrowLabel.FAT,
-                             y_pred == BoneMarrowLabel.OTHER, y_pred == BoneMarrowLabel.BACKGROUND]
-        confusion_matrix = [[0] * len(current_pred_list) for i in range(len(current_true_list))]
-        for i in range(len(current_true_list)):
-            for j in range(len(current_pred_list)):
-                confusion_matrix[i][j] = int(np.sum(current_true_list[i] * current_pred_list[j]))
-        
         original_filename = loader.dataset.names[p].rsplit('.')[0]
         folder_path = os.path.join(args.predictions, original_filename)
         os.makedirs(folder_path, exist_ok=True)
+
+        # Saves the confusion matrix
+        cm = calculate_confusion_matrix(y_pred, y_true)
         with open(os.path.join(folder_path, f'stats - {original_filename}.json'), 'w', encoding='utf-8') as f:
-            json.dump(confusion_matrix, f, ensure_ascii=False, indent=4)
+            json.dump(cm, f, ensure_ascii=False, indent=4)
 
         # save segmented images and respective errors
-        folder_path = os.path.join(args.predictions, original_filename)
-        os.makedirs(folder_path, exist_ok=True)
-
         imsave(os.path.join(folder_path, "raw.png"), x)
         imsave(os.path.join(folder_path, "pred.png"), create_seg_image(y_pred))
         imsave(os.path.join(folder_path, "true.png"), create_seg_image(y_true))
@@ -107,6 +104,21 @@ def main(args):
                create_error_image(y_pred, y_true, BoneMarrowLabel.FAT))
         imsave(os.path.join(folder_path, "tissue_error.png"),
                create_error_image(y_pred, y_true, BoneMarrowLabel.OTHER))
+
+
+def calculate_confusion_matrix(y_pred, y_true):
+    """
+        Calculates the confusion matrix
+    """
+    true_list = [y_true == BoneMarrowLabel.BONE, y_true == BoneMarrowLabel.FAT,
+                             y_true == BoneMarrowLabel.OTHER, y_true == BoneMarrowLabel.BACKGROUND]
+    pred_list = [y_pred == BoneMarrowLabel.BONE, y_pred == BoneMarrowLabel.FAT,
+                            y_pred == BoneMarrowLabel.OTHER, y_pred == BoneMarrowLabel.BACKGROUND]
+    confusion_matrix = [[0] * len(pred_list) for i in range(len(true_list))]
+    for i in range(len(true_list)):
+        for j in range(len(pred_list)):
+            confusion_matrix[i][j] = int(np.sum(true_list[i] * pred_list[j]))
+    return confusion_matrix
 
 
 def data_loader(args):
@@ -169,13 +181,12 @@ def plot_dsc(dsc_dist):
     canvas.draw()
     plt.close()
     s, (width, height) = canvas.print_to_buffer()
-    return np.fromstring(s, np.uint8).reshape((height, width, 4))
+    return np.frombuffer(s, np.uint8).reshape((height, width, 4))
 
 
 def makedirs(args):
     os.makedirs(args.predictions, exist_ok=True)
     os.makedirs(args.figure, exist_ok=True)
-    os.makedirs(os.path.join(args.predictions, "outline"), exist_ok=True)
 
 
 if __name__ == "__main__":
@@ -216,7 +227,7 @@ if __name__ == "__main__":
         "--predictions",
         type=str,
         default="./predictions",
-        help="folder for saving images with prediction outlines",
+        help="folder for saving images' predictions",
     )
     parser.add_argument(
         "--figure",
@@ -229,6 +240,12 @@ if __name__ == "__main__":
         type=bool,
         default=True,
         help="does fat override bones?",
+    )
+    parser.add_argument(
+        "--baseline",
+        type=bool,
+        default=False,
+        help="run the baseline (True) or network (False)",
     )
 
     main(parser.parse_args())

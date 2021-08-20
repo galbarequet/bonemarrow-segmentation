@@ -5,39 +5,19 @@ import pandas as pd
 import json
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg
-# from inference import plot_dsc # doesn't work and haven't find a way to do relative imports
+# Relative importing
+import sys
+sys.path.append(os.getcwd())
+from inference import plot_dsc
 from skimage.io import imsave
 
 
 prediction_path = None
 
 
-#### Copied from inference if you find a way to import then delete this
-def plot_dsc(dsc_dist):
-    y_positions = np.arange(len(dsc_dist))
-    dsc_dist = sorted(dsc_dist.items(), key=lambda x: x[1])
-    values = [x[1] for x in dsc_dist]
-    labels = [x[0] for x in dsc_dist]
-    fig = plt.figure(figsize=(12, 8))
-    canvas = FigureCanvasAgg(fig)
-    plt.barh(y_positions, values, align="center", color="skyblue")
-    plt.yticks(y_positions, labels)
-    plt.xticks(np.arange(0.0, 1.0, 0.1))
-    plt.xlim([0.0, 1.0])
-    plt.gca().axvline(np.mean(values), color="tomato", linewidth=2)
-    plt.gca().axvline(np.median(values), color="forestgreen", linewidth=2)
-    plt.xlabel("Dice coefficient", fontsize="x-large")
-    plt.gca().xaxis.grid(color="silver", alpha=0.5, linestyle="--", linewidth=1)
-    plt.tight_layout()
-    canvas.draw()
-    plt.close()
-    s, (width, height) = canvas.print_to_buffer()
-    return np.fromstring(s, np.uint8).reshape((height, width, 4))
-
-
 def print_menu():
     print('Menu:')
-    print('1 - shows confusion matrix')
+    print('1 - show confusion matrix')
     print('2 - insert prediction folder path')
     print('3 - calculate learning graph')
     print('4 - calculate dsc stats')
@@ -190,6 +170,7 @@ def create_dsc_graphs():
             bone_dsc_list.append(bone_dsc)
             fat_dsc_list.append(fat_dsc)
             file_names.append(file_name)
+            print('added {} to graph'.format(file_name))
         elif input_op == 'p':
             save_folder_path = input('Insert path to folder to save the graphs to.\n')
             os.makedirs(save_folder_path, exist_ok=True)

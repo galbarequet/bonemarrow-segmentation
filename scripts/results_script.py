@@ -34,6 +34,7 @@ def plot_dsc(dsc_dist):
     s, (width, height) = canvas.print_to_buffer()
     return np.fromstring(s, np.uint8).reshape((height, width, 4))
 
+
 def print_menu():
     print('Menu:')
     print('1 - shows confusion matrix')
@@ -53,25 +54,25 @@ def normalize_confusion_matrix(confusion_mat):
     return confusion_mat
 
 
-def print_confusion_matrix_graph(confusion_mat, normalize = False):
+def print_confusion_matrix_graph(confusion_mat, normalize=False):
     if normalize:
         confusion_mat = normalize_confusion_matrix(confusion_mat)
-    df_cm = pd.DataFrame(confusion_mat, index = ['bone', 'fat', 'background'],
-                columns = ['bone', 'fat', 'background'])
-    plt.figure(figsize = (7,7))
+    labels = ['Bone', 'Fat', 'Other Tissue', 'Background']
+    df_cm = pd.DataFrame(confusion_mat, index=labels, columns=labels)
+    plt.figure(figsize=(7, 7))
     sn.heatmap(df_cm, annot=True, cmap='Blues')
     plt.ylabel('True labels')
     plt.xlabel('Predicted labels')
     plt.show()
 
 
-def get_confusion_matrix(path_con_mat = None, print_graph = False, normalize_mat = True):
-    if path_con_mat == None:
+def get_confusion_matrix(path_con_mat=None, print_graph=False, normalize_mat=True):
+    if path_con_mat is None:
         path_con_mat = input('Insert path to confusion matrix:\n')
     with open(path_con_mat, 'r', encoding='utf-8') as f:
         confusion_mat = json.load(f)
     if print_graph:
-        print_confusion_matrix_graph(confusion_mat, normalize = normalize_mat)
+        print_confusion_matrix_graph(confusion_mat, normalize=normalize_mat)
     return confusion_mat
 
 
@@ -80,33 +81,53 @@ def change_pred_dir():
     prediction_path = input('Insert path to prediction folder:\n')
 
 
-def graph(y_values, y_label = '', x_label = ''):
+def graph(y_values, y_label='', x_label='', show_graph=True, legend=None):
     x = range(1, len(y_values) + 1)
     plt.plot(x, y_values)
     plt.xlabel(x_label)
     plt.ylabel(y_label)
-    plt.show()
+    if legend is not None:
+        plt.legend(legend)
+    if show_graph:
+        plt.show()
 
 
 def learning_graph():
     path_log_output = input('Insert path to output file from the training process:\n')
     num_epoch = int(input('Insert number of epochs to display (-1 for all epochs):\n'))
+
+    fat_dsc = []
+    bone_dsc = []
+    other_tissue_dsc = []
+    background_dsc = []
+    density_error = []
+    validation_loss = []
     with open(path_log_output, 'r', encoding='utf-8') as f:
-        fat_dsc = []
-        bone_dsc = []
-        validation_loss = []
+
         for line in f:
             if 'fat dsc' in line:
                 fat_dsc.append(float(line.split()[-1]))
             if 'bone dsc' in line:
                 bone_dsc.append(float(line.split()[-1]))
+            if 'tissue dsc' in line:
+                other_tissue_dsc.append(float(line.split()[-1]))
+            if 'background dsc' in line:
+                background_dsc.append(float(line.split()[-1]))
+            if 'bone density error' in line:
+                density_error.append(float(line.split()[-1][:-1]))
             if 'validation loss' in line:
                 validation_loss.append(float(line.split()[-1]))
-            if num_epoch != -1 and len(fat_dsc) >= num_epoch and len(validation_loss) >= num_epoch and len(bone_dsc) >= num_epoch:
+            if (num_epoch != -1 and len(fat_dsc) >= num_epoch and
+               len(validation_loss) >= num_epoch and len(bone_dsc) >= num_epoch):
                 break
-    graph(fat_dsc ,y_label = 'fat dsc',x_label = 'epoch')
-    graph(bone_dsc ,y_label = 'bone dsc',x_label = 'epoch')
-    graph(validation_loss ,y_label = 'validation loss',x_label = 'epoch')
+
+    graph(bone_dsc, show_graph=False)
+    graph(fat_dsc, show_graph=False)
+    graph(other_tissue_dsc, show_graph=False)
+    graph(background_dsc, y_label='Validation DSC', x_label='epoch',
+          legend=['Bone DSC', 'Fat DSC', 'Other Tissue DSC', 'Background DSC'])
+    graph(density_error, y_label='Bone Density Relative Error Percentage', x_label='epoch')
+    graph(validation_loss, y_label='Validation Loss', x_label='epoch')
 
 
 def calc_dsc_from_cm(cm, index):
@@ -136,20 +157,20 @@ def calculate_dsc_for_all():
         Format of output file: image name,bone dsc,fat dsc
     """
     global prediction_path
-    if prediction_path == None:
+    if prediction_path is None:
         print('please set the path to prediction folder first.')
         return
     path_stats_file = input('Insert path to where to save the stats to.\n')
     with open(path_stats_file, 'w+') as write_f:
         for folder in os.listdir(prediction_path):
             bone_dsc, fat_dsc = get_dsc_from_json_file(folder)
-            if bone_dsc == None:
+            if bone_dsc is None:
                 continue
             write_f.write("{},{},{}\n".format(folder, bone_dsc, fat_dsc))
 
 
 def create_dsc_graphs():
-    if prediction_path == None:
+    if prediction_path is None:
         print('please set the path to prediction folder first.')
         return
     bone_dsc_list = []
@@ -164,7 +185,7 @@ def create_dsc_graphs():
         if input_op == 'a':
             file_name = input('insert the image name.\n')
             bone_dsc, fat_dsc = get_dsc_from_json_file(file_name)
-            if bone_dsc == None:
+            if bone_dsc is None:
                 continue
             bone_dsc_list.append(bone_dsc)
             fat_dsc_list.append(fat_dsc)

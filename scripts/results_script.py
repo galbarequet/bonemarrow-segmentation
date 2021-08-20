@@ -35,7 +35,7 @@ def normalize_confusion_matrix(confusion_mat):
     return confusion_mat
 
 
-def print_confusion_matrix_graph(confusion_mat, normalize=False):
+def print_confusion_matrix_graph(confusion_mat, normalize=False, x_label_prefix=''):
     if normalize:
         confusion_mat = normalize_confusion_matrix(confusion_mat)
     labels = ['Bone', 'Fat', 'Other Tissue', 'Background']
@@ -43,7 +43,7 @@ def print_confusion_matrix_graph(confusion_mat, normalize=False):
     plt.figure(figsize=(7, 7))
     sn.heatmap(df_cm, annot=True, cmap='Blues')
     plt.ylabel('True labels')
-    plt.xlabel('Predicted labels')
+    plt.xlabel(f'{x_label_prefix}Predicted labels')
     plt.show()
 
 
@@ -57,19 +57,38 @@ def get_confusion_matrix(path_con_mat=None, print_graph=False, normalize_mat=Tru
     return confusion_mat
 
 
-def get_avg_normalized_confusion_matrix(print_graph=False):
+def get_avg_normalized_confusion_matrix(print_graph=False, split_train_validation=True):
     global prediction_path
     if prediction_path is None:
-        prediction_path = input('Insert path to predictions dir:\n')
+        prediction_path = input('Insert path to prediction folder:\n')
+
+    validation_set = []
+    if split_train_validation:
+        path_log_output = input('Insert path to output file from the training process:\n')
+        with open(path_log_output, 'r', encoding='utf-8') as f:
+            for line in f:
+                if 'validation set:' not in line:
+                    continue
+                validation_set = [s[:-4] for s in json.loads(line.split(': ')[-1].replace("'", '"'))]
+                break
+
     name_to_confusion_matrix = {}
     for i, filename in enumerate(os.listdir(prediction_path)):
         with open(os.path.join(prediction_path, filename, f'stats - {filename}.json'), 'r', encoding='utf-8') as f:
             name_to_confusion_matrix[filename] = normalize_confusion_matrix(json.load(f))
-    avg_confusion_matrix = np.average(list(name_to_confusion_matrix.values()), axis=0)
-    if print_graph:
-        # Normalizing just in case
-        print_confusion_matrix_graph(avg_confusion_matrix, normalize=True)
-    return avg_confusion_matrix
+
+    def show_avg_cm(matrices, prefix=''):
+        avg_confusion_matrix = np.average(matrices, axis=0)
+        if print_graph:
+            # Normalizing just in case
+            print_confusion_matrix_graph(avg_confusion_matrix, normalize=True, x_label_prefix=prefix)
+        return avg_confusion_matrix
+
+    if split_train_validation:
+        show_avg_cm([v for k, v in name_to_confusion_matrix.items() if k not in validation_set], prefix='Train Set - ')
+        show_avg_cm([v for k, v in name_to_confusion_matrix.items() if k in validation_set], prefix='Validation Set - ')
+    else:
+        show_avg_cm(list(name_to_confusion_matrix.values()))
 
 
 def change_pred_dir():
@@ -134,7 +153,7 @@ def calc_dsc_from_cm(cm, index):
 def get_dsc_from_json_file(file_name):
     """
         The function assumes prediction_path is set and doesn't check it.
-        
+
         Return: bone_dsc, fat_dsc
     """
     cm_path = os.path.join(prediction_path, file_name, 'stats - {}.json'.format(file_name))
@@ -215,7 +234,7 @@ if __name__ == '__main__':
         elif input_op == '5':
             create_dsc_graphs()
         elif input_op == '6':
-            get_avg_normalized_confusion_matrix(print_graph=True)
+            get_avg_normalized_confusion_matrix(print_graph=True, split_train_validation=True)
         elif input_op == 'q':
             exit()
         else:

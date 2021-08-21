@@ -2,10 +2,8 @@ import dataset
 import events
 from hannahmontananet import HannahMontanaNet
 import numpy as np
-from skimage.io import imsave
 import sliding_window
 import torch
-import utils
 
 
 class ModelRunner:
@@ -26,9 +24,8 @@ class ModelRunner:
         with torch.set_grad_enabled(False):
             x = image.to(self._device)
             y_pred = self._sliding_window.predict_image(x)
-            y_pred_np = y_pred.detach().cpu().numpy()
-            utils.remove_lowest_confidence(y_pred_np)
-            return np.round(y_pred_np).astype(int)[0]
+            y_pred_np = y_pred.detach().cpu().numpy()[0, ...]
+            return np.argmax(y_pred_np, axis=0)
 
     def _load_model(self, weights_path):
         with torch.set_grad_enabled(False):

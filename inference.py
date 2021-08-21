@@ -77,7 +77,6 @@ def main(args):
     imsave(os.path.join(args.figure, 'dsc_fat.png'), dsc_fat_dist_plot)
     dsc_tissue_dist_plot = plot_param_dist(dsc_tissue_dist)
     imsave(os.path.join(args.figure, 'dsc_tissue.png'), dsc_tissue_dist_plot)
-    imsave(os.path.join(args.figure, 'dsc_tissue.png'), dsc_tissue_dist_plot)
     density_error_dist_plot = plot_param_dist(density_error_dist, param_name='Density error')
     imsave(os.path.join(args.figure, 'density_error.png'), density_error_dist_plot)
 

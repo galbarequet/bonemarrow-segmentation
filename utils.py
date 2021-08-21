@@ -2,28 +2,18 @@ from bonemarrow_label import BoneMarrowLabel
 import numpy as np
 
 
-def calculate_bonemarrow_density_error(y_pred, y_true, eps=1e-3):
-    pred_bone_pixels = y_pred == BoneMarrowLabel.BONE
-    pred_tissue_pixels = y_pred != BoneMarrowLabel.BACKGROUND
+def calculate_density(target_mask, mass_type=BoneMarrowLabel.BONE, eps=1e-3):
+    bone_pixels = target_mask == mass_type
+    tissue_pixels = target_mask != BoneMarrowLabel.BACKGROUND
 
-    pred_bone_density = (np.sum(pred_bone_pixels) + eps) / (np.sum(pred_tissue_pixels) + eps)
-
-    true_bone_pixels = y_true == BoneMarrowLabel.BONE
-    true_tissue_pixels = y_true != BoneMarrowLabel.BACKGROUND
-
-    true_bone_density = (np.sum(true_bone_pixels) + eps) / (np.sum(true_tissue_pixels) + eps)
-
-    error = np.abs(pred_bone_density - true_bone_density) / true_bone_density
-
-    return error
+    bone_density = (np.sum(bone_pixels) + eps) / (np.sum(tissue_pixels) + eps)
+    return bone_density
 
 
-def remove_lowest_confidence(y_pred):
-    """
-    Zeros the channel with lower confidence in prediction. Use this if you want to have an exclusive label per pixel
-    """
-    y_pred[:, 0, y_pred[0, 0] < y_pred[0, 1]] = 0
-    y_pred[:, 1, y_pred[0, 0] >= y_pred[0, 1]] = 0
+def calculate_bonemarrow_density_error(y_pred, y_true):
+    pred_bone_density = calculate_density(y_pred)
+    true_bone_density = calculate_density(y_true)
+    return np.abs(pred_bone_density - true_bone_density) / true_bone_density
 
 
 def dsc(y_pred, y_true, eps=1e-3, categories=BoneMarrowLabel.TOTAL):

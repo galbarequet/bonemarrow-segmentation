@@ -53,8 +53,8 @@ def main(args):
 
     for epoch in tqdm(range(args.epochs), total=args.epochs):
         if epoch % 10 == 0:
-            save_stats(args, phase_samples, validation_density_error, loss_train_mean, loss_valid_mean, validation_background_dsc,
-                       validation_bone_dsc, validation_fat_dsc, validation_tissue_dsc)
+            save_stats(args, phase_samples, validation_density_error, loss_train_mean, loss_valid_mean,
+                       validation_background_dsc, validation_bone_dsc, validation_fat_dsc, validation_tissue_dsc)
 
         for phase in ["train", "valid"]:
             if phase == "train":

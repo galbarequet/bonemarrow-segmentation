@@ -1,3 +1,4 @@
+from bonemarrow_label import BoneMarrowLabel
 import contextlib
 import base64
 import io
@@ -19,7 +20,7 @@ WEIGHTS_DIR = r'weights'
 # CR: (GB) change this
 MODEL_WEIGHTS = os.path.join(WEIGHTS_DIR, 'bms_model.pt')
 MODEL_WEIGHTS_DRIVE_ID = '13yxm1rChiO3OjugujVoR-ph3Qlk3Gzs0'
-DEFAULT_CROP_SIZE = 512
+DEFAULT_CROP_SIZE = 480
 DEFAULT_STEP_SIZE = 128
 
 
@@ -132,18 +133,19 @@ def segment_image():
     st.markdown(get_image_download_link(segmented_image, 'output.png', 'Download segmented image!'),
                 unsafe_allow_html=True)
 
-    # Note: calculating the relative volume of bone/fat in the segmented pixels
-    total_predicted_size = np.count_nonzero(prediction[0] + prediction[1])
-    labels = ['Bone', 'Fat']
-    relative_volume = [100 * np.count_nonzero(prediction[i]) / total_predicted_size for i in range(prediction.shape[0])]
+    # Note: display density of different tissues in the segmented pixels
+    labels_values = [BoneMarrowLabel.BONE, BoneMarrowLabel.FAT, BoneMarrowLabel.OTHER]
+    densities = [100 * utils.calculate_density(prediction, label) for label in labels_values]
 
     with _lock:
         fig, ax = plt.subplots()
-        ax.pie(relative_volume, labels=labels, autopct='%1.2f%%', startangle=90)
+        labels = ['Bone Mass', 'Fat Mass', 'Other Tissue Mass']
+        explode = [0.2, 0, 0]
+        ax.pie(densities, labels=labels, autopct='%1.2f%%', startangle=90, explode=explode)
         ax.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
 
         with columns[2]:
-            st.subheader('Relative Volume:')
+            st.subheader('Bone Marrow Density From Total Mass:')
             st.pyplot(fig)
 
 

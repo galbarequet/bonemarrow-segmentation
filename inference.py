@@ -37,13 +37,16 @@ def main(args):
 
             sliding_window_predictor = sliding_window.SlidingWindow(net, args.crop_size, args.step_size)
 
-        input_list = []
-        pred_list = []
-        true_list = []
+        dsc_background_dist = {}
+        dsc_bone_dist = {}
+        dsc_fat_dist = {}
+        dsc_tissue_dist = {}
+        density_error_dist = {}
 
         for i, data in tqdm(enumerate(loader)):
-            print(i)
             x, y_true = data
+            filename = names[i]
+            print('segmenting file: {}'.format(filename))
 
             if args.baseline:
                 x = x.detach().numpy()
@@ -60,13 +63,11 @@ def main(args):
                 y_true_np = y_true.detach().cpu().numpy()
 
             y_true_np = y_true_np[0, ...]
-            x_np = x_np[0, ...]
-            true_list.append(y_true_np)
-            pred_list.append(y_pred_np)
-            input_list.append(x_np)
-
-    dsc_background_dist, dsc_bone_dist, dsc_fat_dist, dsc_tissue_dist = dsc_distribution(names, pred_list, true_list)
-    density_error_dist = calc_bone_density_error_distribution(names, pred_list, true_list)
+            x_np = x_np[0, ...].transpose(1, 2, 0).astype(np.uint8)
+            save_image_stats(x_np, y_pred_np, y_true_np, args.predictions, filename)
+            dsc_background_dist[filename], dsc_bone_dist[filename], dsc_fat_dist[filename], dsc_tissue_dist[filename] = \
+                dsc(y_pred_np, y_true_np)
+            density_error_dist[filename] = calculate_bonemarrow_density_error(y_pred_np, y_true_np)
 
     dsc_background_dist_plot = plot_param_dist(dsc_background_dist)
     imsave(os.path.join(args.figure, 'dsc_backgorund.png'), dsc_background_dist_plot)
@@ -79,29 +80,32 @@ def main(args):
     density_error_dist_plot = plot_param_dist(density_error_dist, param_name='Density error')
     imsave(os.path.join(args.figure, 'density_error.png'), density_error_dist_plot)
 
-    for original_filename, x, y_pred, y_true in enumerate(zip(names, input_list, pred_list, true_list)):
-        x = x.transpose(1, 2, 0).astype(np.uint8)
-        folder_path = os.path.join(args.predictions, original_filename)
-        os.makedirs(folder_path, exist_ok=True)
 
-        # Saves the confusion matrix
-        cm = calculate_confusion_matrix(y_pred, y_true)
-        with open(os.path.join(folder_path, f'stats - {original_filename}.json'), 'w', encoding='utf-8') as f:
-            json.dump(cm, f, ensure_ascii=False, indent=4)
+def save_image_stats(x, y_pred, y_true, folder, name):
+    """
+        Saves the confusion matrix, segmentation image, and error images to a folder named name inside folder
+    """
+    folder_path = os.path.join(folder, name)
+    os.makedirs(folder_path, exist_ok=True)
 
-        # save segmented images and respective errors
-        imsave(os.path.join(folder_path, "raw.png"), x)
-        imsave(os.path.join(folder_path, "pred.png"), create_seg_image(y_pred))
-        imsave(os.path.join(folder_path, "true.png"), create_seg_image(y_true))
+    # Saves the confusion matrix
+    cm = calculate_confusion_matrix(y_pred, y_true)
+    with open(os.path.join(folder_path, f'stats - {name}.json'), 'w', encoding='utf-8') as f:
+        json.dump(cm, f, ensure_ascii=False, indent=4)
 
-        imsave(os.path.join(folder_path, "background_error.png"),
-               create_error_image(y_pred, y_true, BoneMarrowLabel.BACKGROUND))
-        imsave(os.path.join(folder_path, "bones_error.png"),
-               create_error_image(y_pred, y_true, BoneMarrowLabel.BONE))
-        imsave(os.path.join(folder_path, "fat_error.png"),
-               create_error_image(y_pred, y_true, BoneMarrowLabel.FAT))
-        imsave(os.path.join(folder_path, "tissue_error.png"),
-               create_error_image(y_pred, y_true, BoneMarrowLabel.OTHER))
+    # save segmented images and respective errors
+    imsave(os.path.join(folder_path, "raw.png"), x)
+    imsave(os.path.join(folder_path, "pred.png"), create_seg_image(y_pred))
+    imsave(os.path.join(folder_path, "true.png"), create_seg_image(y_true))
+
+    imsave(os.path.join(folder_path, "background_error.png"),
+            create_error_image(y_pred, y_true, BoneMarrowLabel.BACKGROUND))
+    imsave(os.path.join(folder_path, "bones_error.png"),
+            create_error_image(y_pred, y_true, BoneMarrowLabel.BONE))
+    imsave(os.path.join(folder_path, "fat_error.png"),
+            create_error_image(y_pred, y_true, BoneMarrowLabel.FAT))
+    imsave(os.path.join(folder_path, "tissue_error.png"),
+            create_error_image(y_pred, y_true, BoneMarrowLabel.OTHER))
 
 
 def calculate_confusion_matrix(y_pred, y_true):
@@ -134,24 +138,6 @@ def data_loader(args):
         num_workers=1,
     )
     return loader
-
-
-def dsc_distribution(names, pred_list, true_list):
-    dsc_background_dict = {}
-    dsc_bone_dict = {}
-    dsc_fat_dict = {}
-    dsc_tissue_dict = {}
-    for filename, y_pred, y_true in zip(names, pred_list, true_list):
-        dsc_background_dict[filename], dsc_bone_dict[filename], dsc_fat_dict[filename], dsc_tissue_dict[filename] = \
-            dsc(y_pred, y_true)
-    return dsc_background_dict, dsc_bone_dict, dsc_fat_dict, dsc_tissue_dict
-
-
-def calc_bone_density_error_distribution(names, pred_list, true_list):
-    bone_density_error_dict = {}
-    for filename, y_pred, y_true in zip(names, pred_list, true_list):
-        bone_density_error_dict[filename] = calculate_bonemarrow_density_error(y_pred, y_true)
-    return bone_density_error_dict
 
 
 def plot_param_dist(dist, param_name="Dice coefficient"):

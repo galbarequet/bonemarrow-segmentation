@@ -25,6 +25,7 @@ def main(args):
     device = torch.device("cpu" if not torch.cuda.is_available() else args.device)
 
     loader = data_loader(args)
+    names = [s.rsplit('.')[0] for s in loader.dataset.names]
 
     with torch.set_grad_enabled(False):
         if not args.baseline:
@@ -64,8 +65,6 @@ def main(args):
             pred_list.append(y_pred_np)
             input_list.append(x_np)
 
-    n = len(input_list)
-
     dsc_background_dist, dsc_bone_dist, dsc_fat_dist, dsc_tissue_dist = dsc_distribution(pred_list, true_list)
     density_error_dist = calc_bone_density_error_distribution(pred_list, true_list)
 
@@ -80,11 +79,8 @@ def main(args):
     density_error_dist_plot = plot_param_dist(density_error_dist, param_name='Density error')
     imsave(os.path.join(args.figure, 'density_error.png'), density_error_dist_plot)
 
-    for p in range(n):
-        x = input_list[p].transpose(1, 2, 0).astype(np.uint8)
-        y_pred = pred_list[p]
-        y_true = true_list[p]
-        original_filename = loader.dataset.names[p].rsplit('.')[0]
+    for original_filename, x, y_pred, y_true in enumerate(zip(names, input_list, pred_list, true_list)):
+        x = x.transpose(1, 2, 0).astype(np.uint8)
         folder_path = os.path.join(args.predictions, original_filename)
         os.makedirs(folder_path, exist_ok=True)
 
@@ -113,9 +109,9 @@ def calculate_confusion_matrix(y_pred, y_true):
         Calculates the confusion matrix
     """
     true_list = [y_true == BoneMarrowLabel.BONE, y_true == BoneMarrowLabel.FAT,
-                             y_true == BoneMarrowLabel.OTHER, y_true == BoneMarrowLabel.BACKGROUND]
+                 y_true == BoneMarrowLabel.OTHER, y_true == BoneMarrowLabel.BACKGROUND]
     pred_list = [y_pred == BoneMarrowLabel.BONE, y_pred == BoneMarrowLabel.FAT,
-                            y_pred == BoneMarrowLabel.OTHER, y_pred == BoneMarrowLabel.BACKGROUND]
+                 y_pred == BoneMarrowLabel.OTHER, y_pred == BoneMarrowLabel.BACKGROUND]
     confusion_matrix = [[0] * len(pred_list) for i in range(len(true_list))]
     for i in range(len(true_list)):
         for j in range(len(pred_list)):
@@ -140,27 +136,21 @@ def data_loader(args):
     return loader
 
 
-def dsc_distribution(pred_list, true_list):
-    n = len(pred_list)
+def dsc_distribution(names, pred_list, true_list):
     dsc_background_dict = {}
     dsc_bone_dict = {}
     dsc_fat_dict = {}
     dsc_tissue_dict = {}
-    for p in range(n):
-        y_pred = pred_list[p]
-        y_true = true_list[p]
-        dsc_background_dict[p], dsc_bone_dict[p], dsc_fat_dict[p], dsc_tissue_dict[p] = \
+    for filename, y_pred, y_true in zip(names, pred_list, true_list):
+        dsc_background_dict[filename], dsc_bone_dict[filename], dsc_fat_dict[filename], dsc_tissue_dict[filename] = \
             dsc(y_pred, y_true)
     return dsc_background_dict, dsc_bone_dict, dsc_fat_dict, dsc_tissue_dict
 
 
-def calc_bone_density_error_distribution(pred_list, true_list):
-    n = len(pred_list)
+def calc_bone_density_error_distribution(names, pred_list, true_list):
     bone_density_error_dict = {}
-    for p in range(n):
-        y_pred = pred_list[p]
-        y_true = true_list[p]
-        bone_density_error_dict[p] = calculate_bonemarrow_density_error(y_pred, y_true)
+    for filename, y_pred, y_true in zip(names, pred_list, true_list):
+        bone_density_error_dict[filename] = calculate_bonemarrow_density_error(y_pred, y_true)
     return bone_density_error_dict
 
 

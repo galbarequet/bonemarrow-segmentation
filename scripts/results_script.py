@@ -10,6 +10,7 @@ import sys
 sys.path.append(os.getcwd())
 from inference import plot_param_dist
 from skimage.io import imsave
+from bonemarrow_label import BoneMarrowLabel
 
 
 prediction_path = None
@@ -154,7 +155,7 @@ def get_dsc_from_json_file(file_name):
     """
         The function assumes prediction_path is set and doesn't check it.
 
-        Return: bone_dsc, fat_dsc
+        Return: background_dsc, bone_dsc, fat_dsc, tissue_dsc
     """
     cm_path = os.path.join(prediction_path, file_name, 'stats - {}.json'.format(file_name))
     try:
@@ -162,9 +163,11 @@ def get_dsc_from_json_file(file_name):
     except FileNotFoundError:
         print("Haven't found json file in {}".format(file_name))
         return None, None
-    bone_dsc = calc_dsc_from_cm(cm, 0)
-    fat_dsc = calc_dsc_from_cm(cm, 1)
-    return bone_dsc, fat_dsc
+    background_dsc = calc_dsc_from_cm(cm, BoneMarrowLabel.BACKGROUND)
+    bone_dsc = calc_dsc_from_cm(cm, BoneMarrowLabel.BONE)
+    fat_dsc = calc_dsc_from_cm(cm, BoneMarrowLabel.FAT)
+    tissue_dsc = calc_dsc_from_cm(cm, BoneMarrowLabel.OTHER)
+    return background_dsc, bone_dsc, fat_dsc, tissue_dsc
 
 
 def calculate_dsc_for_all():
@@ -178,10 +181,10 @@ def calculate_dsc_for_all():
     path_stats_file = input('Insert path to where to save the stats to.\n')
     with open(path_stats_file, 'w+') as write_f:
         for folder in os.listdir(prediction_path):
-            bone_dsc, fat_dsc = get_dsc_from_json_file(folder)
+            background_dsc, bone_dsc, fat_dsc, tissue_dsc = get_dsc_from_json_file(folder)
             if bone_dsc is None:
                 continue
-            write_f.write("{},{},{}\n".format(folder, bone_dsc, fat_dsc))
+            write_f.write("{},{},{},{},{}\n".format(folder, background_dsc, bone_dsc, fat_dsc, tissue_dsc))
 
 
 def create_dsc_graphs():

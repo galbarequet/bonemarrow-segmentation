@@ -65,8 +65,8 @@ def main(args):
             pred_list.append(y_pred_np)
             input_list.append(x_np)
 
-    dsc_background_dist, dsc_bone_dist, dsc_fat_dist, dsc_tissue_dist = dsc_distribution(pred_list, true_list)
-    density_error_dist = calc_bone_density_error_distribution(pred_list, true_list)
+    dsc_background_dist, dsc_bone_dist, dsc_fat_dist, dsc_tissue_dist = dsc_distribution(names, pred_list, true_list)
+    density_error_dist = calc_bone_density_error_distribution(names, pred_list, true_list)
 
     dsc_background_dist_plot = plot_param_dist(dsc_background_dist)
     imsave(os.path.join(args.figure, 'dsc_backgorund.png'), dsc_background_dist_plot)

@@ -140,8 +140,9 @@ def segment_image():
     with _lock:
         fig, ax = plt.subplots()
         labels = ['Bone Mass', 'Fat Mass', 'Other Tissue Mass']
-        explode = [0.2, 0, 0]
-        ax.pie(densities, labels=labels, autopct='%1.2f%%', startangle=90, explode=explode)
+        explode = [0.1, 0, 0]
+        colors = ['#640000', '#006400', '#000064']
+        ax.pie(densities, labels=labels, autopct='%1.2f%%', startangle=90, explode=explode, colors=colors)
         ax.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
 
         with columns[2]:
@@ -155,7 +156,7 @@ def main():
     st.write('Bone Marrow Segmentation (BMS) is the problem domain of automatic '
              'segmentation of different tissues in bone-marrow biopsy samples.')
     st.write('BMS is relevant for medical research purposes. In particular, BMS is used for researching'
-             ' the co-relation between the relative volume of fat/bone tissue in the biopsy and diseases.')
+             ' the co-relation between the relative volume of fat/bone tissue in the biopsy and certain diseases.')
     st.write('**Our goal is to automate segmentation of different tissues in a bone-marrow biopsy sample.**')
 
     segment_image()

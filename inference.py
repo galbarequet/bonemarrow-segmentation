@@ -44,8 +44,8 @@ def main(args):
 
         for i, data in tqdm(enumerate(loader)):
             x, y_true = data
-            filename = names[i]
-            print('segmenting file: {}'.format(filename))
+            name = names[i]
+            print(f'segmenting file: {name}')
 
             if args.baseline:
                 x = x.detach().numpy()
@@ -63,10 +63,10 @@ def main(args):
 
             y_true_np = y_true_np[0, ...]
             x_np = x_np[0, ...].transpose(1, 2, 0).astype(np.uint8)
-            save_image_stats(x_np, y_pred_np, y_true_np, args.predictions, filename)
-            dsc_background_dist[filename], dsc_bone_dist[filename], dsc_fat_dist[filename], dsc_tissue_dist[filename] = \
+            save_image_stats(x_np, y_pred_np, y_true_np, args.predictions, name)
+            dsc_background_dist[name], dsc_bone_dist[name], dsc_fat_dist[name], dsc_tissue_dist[name] = \
                 dsc(y_pred_np, y_true_np)
-            density_error_dist[filename] = calculate_bonemarrow_density_error(y_pred_np, y_true_np)
+            density_error_dist[name] = calculate_bonemarrow_density_error(y_pred_np, y_true_np)
 
     dsc_background_dist_plot = plot_param_dist(dsc_background_dist)
     imsave(os.path.join(args.figure, 'dsc_backgorund.png'), dsc_background_dist_plot)
@@ -98,13 +98,13 @@ def save_image_stats(x, y_pred, y_true, folder, name):
     imsave(os.path.join(folder_path, "true.png"), create_seg_image(y_true))
 
     imsave(os.path.join(folder_path, "background_error.png"),
-            create_error_image(y_pred, y_true, BoneMarrowLabel.BACKGROUND))
+           create_error_image(y_pred, y_true, BoneMarrowLabel.BACKGROUND))
     imsave(os.path.join(folder_path, "bones_error.png"),
-            create_error_image(y_pred, y_true, BoneMarrowLabel.BONE))
+           create_error_image(y_pred, y_true, BoneMarrowLabel.BONE))
     imsave(os.path.join(folder_path, "fat_error.png"),
-            create_error_image(y_pred, y_true, BoneMarrowLabel.FAT))
+           create_error_image(y_pred, y_true, BoneMarrowLabel.FAT))
     imsave(os.path.join(folder_path, "tissue_error.png"),
-            create_error_image(y_pred, y_true, BoneMarrowLabel.OTHER))
+           create_error_image(y_pred, y_true, BoneMarrowLabel.OTHER))
 
 
 def calculate_confusion_matrix(y_pred, y_true):

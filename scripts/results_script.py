@@ -178,6 +178,10 @@ def calculate_dsc_for_all():
     if prediction_path is None:
         print('please set the path to prediction folder first.')
         return
+    background_dsc_list = []
+    bone_dsc_list = []
+    fat_dsc_list = []
+    tissue_dsc_list = []
     path_stats_file = input('Insert path to where to save the stats to.\n')
     with open(path_stats_file, 'w+') as write_f:
         for folder in os.listdir(prediction_path):
@@ -185,6 +189,19 @@ def calculate_dsc_for_all():
             if bone_dsc is None:
                 continue
             write_f.write("{},{:.4f},{:.4f},{:.4f},{:.4f}\n".format(folder, background_dsc, bone_dsc, fat_dsc, tissue_dsc))
+            background_dsc_list.append(background_dsc)
+            bone_dsc_list.append(bone_dsc)
+            fat_dsc_list.append(fat_dsc)
+            tissue_dsc_list.append(tissue_dsc)
+        
+        n = len(background_dsc_list)
+        background_dsc_list.sort()
+        bone_dsc_list.sort()
+        fat_dsc_list.sort()
+        tissue_dsc_list.sort()
+        write_f.write("{},{:.4f},{:.4f},{:.4f},{:.4f}\n".format('min', background_dsc_list[0], bone_dsc_list[0], fat_dsc_list[0], tissue_dsc_list[0]))
+        write_f.write("{},{:.4f},{:.4f},{:.4f},{:.4f}\n".format('max', background_dsc_list[-1], bone_dsc_list[-1], fat_dsc_list[-1], tissue_dsc_list[-1]))
+        write_f.write("{},{:.4f},{:.4f},{:.4f},{:.4f}\n".format('mean', sum(background_dsc_list) / n, sum(bone_dsc_list) / n, sum(fat_dsc_list) / n, sum(tissue_dsc_list) / n))
 
 
 def create_dsc_graphs():

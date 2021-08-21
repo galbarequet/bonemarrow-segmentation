@@ -152,6 +152,7 @@ class RandomColorTransform(object):
         return image, label
 
 
+# Note: based on https://gist.github.com/fmder/e28813c1e8721830ff9c
 class RandomElasticTransform(object):
 
     def __init__(self, p):

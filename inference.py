@@ -17,7 +17,6 @@ from utils import create_seg_image, dsc, create_error_image, calculate_bonemarro
 
 from hannahmontananet import HannahMontanaNet
 import sliding_window
-matplotlib.use('Agg')
 
 
 def main(args):
@@ -112,10 +111,10 @@ def calculate_confusion_matrix(y_pred, y_true):
     """
         Calculates the confusion matrix
     """
-    true_list = [y_true == BoneMarrowLabel.BONE, y_true == BoneMarrowLabel.FAT,
-                 y_true == BoneMarrowLabel.OTHER, y_true == BoneMarrowLabel.BACKGROUND]
-    pred_list = [y_pred == BoneMarrowLabel.BONE, y_pred == BoneMarrowLabel.FAT,
-                 y_pred == BoneMarrowLabel.OTHER, y_pred == BoneMarrowLabel.BACKGROUND]
+    true_list = [y_true == BoneMarrowLabel.BACKGROUND, y_true == BoneMarrowLabel.BONE,
+                 y_true == BoneMarrowLabel.FAT, y_true == BoneMarrowLabel.OTHER]
+    pred_list = [y_pred == BoneMarrowLabel.BACKGROUND, y_pred == BoneMarrowLabel.BONE,
+                 y_pred == BoneMarrowLabel.FAT, y_pred == BoneMarrowLabel.OTHER]
     confusion_matrix = [[0] * len(pred_list) for i in range(len(true_list))]
     for i in range(len(true_list)):
         for j in range(len(pred_list)):
@@ -172,6 +171,7 @@ def makedirs(args):
 
 
 if __name__ == "__main__":
+    matplotlib.use('Agg')
     parser = argparse.ArgumentParser(
         description="Inference for segmentation of bone marrow"
     )

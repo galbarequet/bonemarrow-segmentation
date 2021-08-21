@@ -184,16 +184,17 @@ def calculate_dsc_for_all():
             background_dsc, bone_dsc, fat_dsc, tissue_dsc = get_dsc_from_json_file(folder)
             if bone_dsc is None:
                 continue
-            write_f.write("{},{},{},{},{}\n".format(folder, background_dsc, bone_dsc, fat_dsc, tissue_dsc))
+            write_f.write("{},{:.4f},{:.4f},{:.4f},{:.4f}\n".format(folder, background_dsc, bone_dsc, fat_dsc, tissue_dsc))
 
 
 def create_dsc_graphs():
     if prediction_path is None:
         print('please set the path to prediction folder first.')
         return
-    bone_dsc_list = []
-    fat_dsc_list = []
-    file_names = []
+    bone_dsc_dist = {}
+    fat_dsc_dist = {}
+    background_dsc_dist = {}
+    tissue_dsc_dist = {}
     while True:
         print('Menu:')
         print('a - insert new file to add to graph')
@@ -202,20 +203,25 @@ def create_dsc_graphs():
         input_op = input()
         if input_op == 'a':
             file_name = input('insert the image name.\n')
-            bone_dsc, fat_dsc = get_dsc_from_json_file(file_name)
+            background_dsc, bone_dsc, fat_dsc, tissue_dsc = get_dsc_from_json_file(file_name)
             if bone_dsc is None:
                 continue
-            bone_dsc_list.append(bone_dsc)
-            fat_dsc_list.append(fat_dsc)
-            file_names.append(file_name)
+            background_dsc_dist[file_name] = background_dsc
+            bone_dsc_dist[file_name] = bone_dsc
+            fat_dsc_dist[file_name] = fat_dsc
+            tissue_dsc_dist[file_name] = tissue_dsc
             print('added {} to graph'.format(file_name))
         elif input_op == 'p':
             save_folder_path = input('Insert path to folder to save the graphs to.\n')
             os.makedirs(save_folder_path, exist_ok=True)
-            dsc_bone_dist_plot = plot_param_dist(dict(zip(file_names, bone_dsc_list)))
+            dsc_background_dist_plot = plot_param_dist(background_dsc_dist)
+            imsave(os.path.join(save_folder_path, 'dsc_background.png'), dsc_background_dist_plot)
+            dsc_bone_dist_plot = plot_param_dist(bone_dsc_dist)
             imsave(os.path.join(save_folder_path, 'dsc_bone.png'), dsc_bone_dist_plot)
-            dsc_fat_dist_plot = plot_param_dist(dict(zip(file_names, fat_dsc_list)))
+            dsc_fat_dist_plot = plot_param_dist(fat_dsc_dist)
             imsave(os.path.join(save_folder_path, 'dsc_fat.png'), dsc_fat_dist_plot)
+            dsc_tissue_dist_plot = plot_param_dist(tissue_dsc_dist)
+            imsave(os.path.join(save_folder_path, 'dsc_tissue.png'), dsc_tissue_dist_plot)
         elif input_op == 'q':
             return
         else:

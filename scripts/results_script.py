@@ -39,7 +39,7 @@ def normalize_confusion_matrix(confusion_mat):
 def print_confusion_matrix_graph(confusion_mat, normalize=False, x_label_prefix=''):
     if normalize:
         confusion_mat = normalize_confusion_matrix(confusion_mat)
-    labels = ['Bone', 'Fat', 'Other Tissue', 'Background']
+    labels = ['Background', 'Bone', 'Fat', 'Other Tissue']
     df_cm = pd.DataFrame(confusion_mat, index=labels, columns=labels)
     plt.figure(figsize=(7, 7))
     sn.heatmap(df_cm, annot=True, cmap='Blues')
@@ -260,7 +260,7 @@ if __name__ == '__main__':
         elif input_op == '5':
             create_dsc_graphs()
         elif input_op == '6':
-            get_avg_normalized_confusion_matrix(print_graph=True, split_train_validation=True)
+            get_avg_normalized_confusion_matrix(print_graph=True, split_train_validation=False)
         elif input_op == 'q':
             exit()
         else:

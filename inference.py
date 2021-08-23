@@ -13,7 +13,7 @@ from baseline.baseline import segment_image
 
 from bonemarrow_label import BoneMarrowLabel
 from dataset import BoneMarrowDataset as Dataset
-from utils import create_seg_image, dsc, create_error_image, calculate_bonemarrow_density_error
+from utils import create_seg_image, dsc, create_error_image, calculate_bonemarrow_density_error, calculate_density
 
 from hannahmontananet import HannahMontanaNet
 import sliding_window
@@ -25,6 +25,9 @@ def main(args):
 
     loader = data_loader(args)
     names = [s.rsplit('.')[0] for s in loader.dataset.names]
+
+    predicted_bone_density = []
+    true_bone_density = []
 
     with torch.set_grad_enabled(False):
         if not args.baseline:
@@ -61,12 +64,19 @@ def main(args):
                 x_np = x.detach().cpu().numpy()
                 y_true_np = y_true.detach().cpu().numpy()
 
+                predicted_bone_density.append(calculate_density(y_pred_np[0]))
+                true_bone_density.append(calculate_density(y_true_np[0]))
+
             y_true_np = y_true_np[0, ...]
             x_np = x_np[0, ...].transpose(1, 2, 0).astype(np.uint8)
             save_image_stats(x_np, y_pred_np, y_true_np, args.predictions, name)
             dsc_background_dist[name], dsc_bone_dist[name], dsc_fat_dist[name], dsc_tissue_dist[name] = \
                 dsc(y_pred_np, y_true_np)
             density_error_dist[name] = calculate_bonemarrow_density_error(y_pred_np, y_true_np)
+
+
+    pearson_correlation = np.corrcoef(predicted_bone_density, true_bone_density)
+    print(pearson_correlation)
 
     dsc_background_dist_plot = plot_param_dist(dsc_background_dist)
     imsave(os.path.join(args.figure, 'dsc_backgorund.png'), dsc_background_dist_plot)
@@ -125,9 +135,8 @@ def calculate_confusion_matrix(y_pred, y_true):
 def data_loader(args):
     dataset = Dataset(
         images_dir=args.images,
-        subset="validation",
+        subset="all",
         random_sampling=False,
-        validation_cases=None,
         fat_overrides_bone=args.fat_overrides
     )
     loader = DataLoader(

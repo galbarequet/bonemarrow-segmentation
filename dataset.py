@@ -72,7 +72,8 @@ class BoneMarrowDataset(Dataset):
         transform=None,
         subset="train",
         random_sampling=True,
-        validation_cases=7,
+        validation_cases=5,
+        test_cases=5,
         seed=42,
         fat_overrides_bone=True
     ):
@@ -88,22 +89,28 @@ class BoneMarrowDataset(Dataset):
         if not subset == "all":
             random.seed(seed)
             indices = [i for i in range(len(self.labels))]
-            validation_indices = indices
-            if validation_cases is not None:
-                validation_indices = random.sample(indices, k=validation_cases)
-            if subset != "validation":
+            validation_and_test_indices = random.sample(indices, k=validation_cases + test_cases)
+            validation_indices = validation_and_test_indices[:validation_cases]
+            test_indices = validation_and_test_indices[validation_cases:]
+            if subset == "train":
                 train_indices = sorted(
-                    list(set(indices).difference(validation_indices))
+                    list(set(indices).difference(validation_and_test_indices))
                 )
                 self.images = [self.images[i] for i in train_indices]
                 self.labels = [self.labels[i] for i in train_indices]
                 self.names = [self.names[i] for i in train_indices]
                 self.crop_masks = [self.crop_masks[i] for i in train_indices]
-            else:
+            elif subset == "validation":
                 self.images = [self.images[i] for i in validation_indices]
                 self.labels = [self.labels[i] for i in validation_indices]
                 self.names = [self.names[i] for i in validation_indices]
                 self.crop_masks = [self.crop_masks[i] for i in validation_indices]
+            else:
+                self.images = [self.images[i] for i in test_indices]
+                self.labels = [self.labels[i] for i in test_indices]
+                self.names = [self.names[i] for i in test_indices]
+                self.crop_masks = [self.crop_masks[i] for i in test_indices]
+
 
         self.random_sampling = random_sampling
 

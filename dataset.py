@@ -77,7 +77,7 @@ class BoneMarrowDataset(Dataset):
         seed=42,
         fat_overrides_bone=True
     ):
-        assert subset in ["all", "train", "validation"]
+        assert subset in ["all", "train", "validation", "test"]
 
         # read images
         self.images, self.labels, self.names, self.crop_masks = self.load_dataset(images_dir, fat_overrides_bone)

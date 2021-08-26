@@ -20,10 +20,15 @@ def main(args):
     makedirs(args)
     device = torch.device("cpu" if not torch.cuda.is_available() else args.device)
 
-    loader_train, loader_valid = data_loaders(args)
-    loaders = {"train": loader_train, "valid": loader_valid}
-    phase_samples = {"train": loader_train.dataset.names, "valid": loader_valid.dataset.names}
+    loader_train, loader_valid, loader_test = data_loaders(args)
+    loaders = {'train': loader_train, 'valid': loader_valid}
+    phase_samples = {
+        'train': loader_train.dataset.names,
+        'valid': loader_valid.dataset.names,
+        'test': loader_test.dataset.names
+    }
     print("validation set: {}".format(loader_valid.dataset.names))
+    print("test set: {}".format(loader_test.dataset.names))
 
     hannahmontana_net = HannahMontanaNet()
     hannahmontana_net.to(device)
@@ -183,7 +188,7 @@ def save_stats(args, dataset, validation_density_error, train_loss, valid_loss,
 
 
 def data_loaders(args):
-    dataset_train, dataset_valid = datasets(args)
+    dataset_train, dataset_valid, dataset_test = datasets(args)
 
     def worker_init(worker_id):
         np.random.seed(42 + worker_id)
@@ -202,8 +207,14 @@ def data_loaders(args):
         num_workers=args.workers,
         worker_init_fn=worker_init,
     )
+    loader_test = DataLoader(
+        dataset_test,
+        batch_size=1,
+        num_workers=args.workers,
+        worker_init_fn=worker_init,
+    )
 
-    return loader_train, loader_valid
+    return loader_train, loader_valid, loader_test
 
 
 def datasets(args):
@@ -227,7 +238,13 @@ def datasets(args):
         random_sampling=False,
         fat_overrides_bone=args.fat_overrides,
     )
-    return train, valid
+    test = Dataset(
+        images_dir=args.images,
+        subset="test",
+        random_sampling=False,
+        fat_overrides_bone=args.fat_overrides,
+    )
+    return train, valid, test
 
 
 def calculate_bone_density_error_validation(validation_pred, validation_true):

@@ -64,7 +64,7 @@ def main(args):
                 x_np = x.detach().cpu().numpy()
                 y_true_np = y_true.detach().cpu().numpy()
 
-                predicted_bone_density.append(calculate_density(y_pred_np[0]))
+                predicted_bone_density.append(calculate_density(y_pred_np))
                 true_bone_density.append(calculate_density(y_true_np[0]))
 
             y_true_np = y_true_np[0, ...]
@@ -74,9 +74,7 @@ def main(args):
                 dsc(y_pred_np, y_true_np)
             density_error_dist[name] = calculate_bonemarrow_density_error(y_pred_np, y_true_np)
 
-
-    pearson_correlation = np.corrcoef(predicted_bone_density, true_bone_density)
-    print(pearson_correlation)
+    save_correlation_graph(predicted_bone_density, true_bone_density, os.path.join(args.figure, 'correlation_graph.png'))
 
     dsc_background_dist_plot = plot_param_dist(dsc_background_dist)
     imsave(os.path.join(args.figure, 'dsc_backgorund.png'), dsc_background_dist_plot)
@@ -117,6 +115,27 @@ def save_image_stats(x, y_pred, y_true, folder, name):
            create_error_image(y_pred, y_true, BoneMarrowLabel.OTHER))
 
 
+def save_correlation_graph(y_pred, y_true, path):
+    print(y_pred)
+    print(y_true)
+    fig = plt.figure()
+    pearson_correlation = np.corrcoef(y_pred, y_true)
+    coef = np.polyfit(y_pred, y_true, 1)
+    poly1d_fn = np.poly1d(coef)
+    plt.scatter(y_pred, y_true)
+    min_x = min(y_pred) * 0.9
+    max_x = max(y_pred) * 1.1
+    plt.plot([min_x, max_x], [poly1d_fn(min_x), poly1d_fn(max_x)], label='Least squares')
+    plt.plot([min_x, max_x], [min_x, max_x], label='x=y')
+    plt.xlabel('predicted bone density')
+    plt.ylabel('true bone density')
+    ax = plt.gca()
+    plt.legend()
+    plt.text(0.5, 0.9,'{:.3f} pearson_correlation'.format(pearson_correlation[0,1]), ha='center', va='center', transform=ax.transAxes)
+    plt.savefig(path)
+    plt.close()
+
+
 def calculate_confusion_matrix(y_pred, y_true):
     """
         Calculates the confusion matrix
@@ -135,9 +154,12 @@ def calculate_confusion_matrix(y_pred, y_true):
 def data_loader(args):
     dataset = Dataset(
         images_dir=args.images,
-        subset="all",
+        subset="test",
         random_sampling=False,
-        fat_overrides_bone=args.fat_overrides
+        fat_overrides_bone=args.fat_overrides,
+        test_cases=7,
+        validation_cases=0
+
     )
     loader = DataLoader(
         dataset,

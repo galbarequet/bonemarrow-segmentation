@@ -157,9 +157,8 @@ def data_loader(args):
         subset="test",
         random_sampling=False,
         fat_overrides_bone=args.fat_overrides,
-        test_cases=7,
-        validation_cases=0
-
+        validation_cases=args.validation_cases,
+        test_cases=args.test_cases
     )
     loader = DataLoader(
         dataset,
@@ -259,6 +258,18 @@ if __name__ == "__main__":
         type=bool,
         default=False,
         help="run the baseline (True) or network (False)",
+    )
+    parser.add_argument(
+        "--validation-cases",
+        type=int,
+        default=7,
+        help="Number of validations cases out of entire dataset",
+    )
+    parser.add_argument(
+        "--test-cases",
+        type=int,
+        default=7,
+        help="Number of test cases out of entire dataset",
     )
 
     main(parser.parse_args())

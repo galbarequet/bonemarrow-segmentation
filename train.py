@@ -232,18 +232,24 @@ def datasets(args):
             color_apply=args.color_apply,
             elastic_apply=args.elastic_apply,
         ),
+        validation_cases=args.validation_cases,
+        test_cases=args.test_cases,
         fat_overrides_bone=args.fat_overrides,
     )
     valid = Dataset(
         images_dir=args.images,
         subset="validation",
         random_sampling=False,
+        validation_cases=args.validation_cases,
+        test_cases=args.test_cases,
         fat_overrides_bone=args.fat_overrides,
     )
     test = Dataset(
         images_dir=args.images,
         subset="test",
         random_sampling=False,
+        validation_cases=args.validation_cases,
+        test_cases=args.test_cases,
         fat_overrides_bone=args.fat_overrides,
     )
     return train, valid, test
@@ -379,5 +385,17 @@ if __name__ == "__main__":
         type=int,
         default=10,
         help="Validate every x train rounds",
+    )
+    parser.add_argument(
+        "--validation-cases",
+        type=int,
+        default=7,
+        help="Number of validations cases out of entire dataset",
+    )
+    parser.add_argument(
+        "--test-cases",
+        type=int,
+        default=7,
+        help="Number of test cases out of entire dataset",
     )
     main(parser.parse_args())

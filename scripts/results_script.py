@@ -36,9 +36,12 @@ def normalize_confusion_matrix(confusion_mat):
     return confusion_mat
 
 
-def print_confusion_matrix_graph(confusion_mat, normalize=False, x_label_prefix=''):
+def print_confusion_matrix_graph(confusion_mat, normalize=False, x_label_prefix='', decimal_digits=2):
     if normalize:
         confusion_mat = normalize_confusion_matrix(confusion_mat)
+    for i in range(len(confusion_mat)):
+        for j in range(len(confusion_mat[i])):
+            confusion_mat[i][j] = round(confusion_mat[i][j], decimal_digits)
     labels = ['Background', 'Bone', 'Fat', 'Other Tissue']
     df_cm = pd.DataFrame(confusion_mat, index=labels, columns=labels)
     plt.figure(figsize=(7, 7))

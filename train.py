@@ -66,6 +66,8 @@ def main(args):
             if phase == "train":
                 hannahmontana_net.train()
             else:
+                if epoch % args.validate_every != 0:
+                    break
                 hannahmontana_net.eval()
 
             validation_pred = []
@@ -371,5 +373,11 @@ if __name__ == "__main__":
         type=int,
         default=10,
         help="Epochs without improvements before the scheduler reduces the lr",
+    )
+    parser.add_argument(
+        "--validate-every",
+        type=int,
+        default=10,
+        help="Validate every x train rounds",
     )
     main(parser.parse_args())

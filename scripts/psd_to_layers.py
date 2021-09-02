@@ -1,6 +1,4 @@
 import os
-import matplotlib.pyplot as plt
-from numpy.core.fromnumeric import shape
 import numpy as np
 from PIL import Image
 from psd_tools import PSDImage

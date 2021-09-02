@@ -31,7 +31,7 @@ def rename_dataset():
 
 def rename_predictions():
     """
-        Renames the files in the dataset to have normal number names (e.g. 1 (1) -> 1, 6b -> 6)
+        Renames the files in the prediction folder to have normal number names (e.g. 1 (1) -> 1, 6b -> 6)
     """
     predictions_folder = input('Insert path to predictions folder.\n')
     for old_name in os.listdir(predictions_folder):

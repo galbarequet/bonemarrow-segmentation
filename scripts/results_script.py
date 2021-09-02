@@ -3,7 +3,6 @@ import numpy as np
 import seaborn as sn
 import pandas as pd
 import json
-import matplotlib
 import matplotlib.pyplot as plt
 # Relative importing
 import sys

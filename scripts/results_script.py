@@ -3,7 +3,9 @@ import numpy as np
 import seaborn as sn
 import pandas as pd
 import json
+from matplotlib.backends.backend_agg import FigureCanvasAgg
 import matplotlib.pyplot as plt
+import pickle
 # Relative importing
 import sys
 sys.path.append(os.getcwd())
@@ -23,7 +25,39 @@ def print_menu():
     print('4 - calculate dsc stats')
     print('5 - create dsc graphs')
     print('6 - show avg. confusion matrix')
+    print('7 - create single dsc graph for predictions')
     print('q - quit')
+
+
+# TODO: this is some sort of duplication from plot_param_dist, fix it some day..
+def plot_params_dist(dist, param_name="Biopsies' Dice coefficient"):
+    """
+        Return the plot of the parameter distribution.
+        Note: the parameter needs to get value from (0,1).
+    """
+    x_positions = np.arange(len(dist))
+    width = 0.15
+    background_values = [x['background'] for x in dist.values()]
+    bone_values = [x['bone'] for x in dist.values()]
+    fat_values = [x['fat'] for x in dist.values()]
+    tissue_values = [x['tissue'] for x in dist.values()]
+    fig = plt.figure(figsize=(12, 8))
+    canvas = FigureCanvasAgg(fig)
+    plt.bar(x_positions + 0 * width, background_values, width=width, align="center", color="black", label='Background')
+    plt.bar(x_positions + 1 * width, bone_values, width=width, align="center", color="red", label='Bone')
+    plt.bar(x_positions + 2 * width, fat_values, width=width, align="center", color="green", label='Fat')
+    plt.bar(x_positions + 3 * width, tissue_values, width=width, align="center", color="blue", label='Other tissues')
+    plt.xticks(x_positions + width, dist.keys())
+    plt.yticks(np.arange(0.0, 1.1, 0.1))
+    plt.ylim([0.0, 1.01])
+    plt.xlabel(param_name, fontsize="x-large")
+    plt.gca().yaxis.grid(color="silver", alpha=0.5, linestyle="--", linewidth=1)
+    plt.tight_layout()
+    plt.legend(loc='lower right')
+    canvas.draw()
+    plt.close()
+    s, (width, height) = canvas.print_to_buffer()
+    return np.frombuffer(s, np.uint8).reshape((height, width, 4))
 
 
 def normalize_confusion_matrix(confusion_mat):
@@ -65,15 +99,20 @@ def get_avg_normalized_confusion_matrix(print_graph=False, split_train_validatio
     if prediction_path is None:
         prediction_path = input('Insert path to prediction folder:\n')
 
+    train_set = []
     validation_set = []
+    test_set = []
+
+    get_names = lambda l: [x.split('.')[0] for x in l]
+
     if split_train_validation:
-        path_log_output = input('Insert path to output file from the training process:\n')
-        with open(path_log_output, 'r', encoding='utf-8') as f:
-            for line in f:
-                if 'validation set:' not in line:
-                    continue
-                validation_set = [s[:-4] for s in json.loads(line.split(': ')[-1].replace("'", '"'))]
-                break
+        stats_path = input('Insert path to stats file:\n')
+        with open(stats_path, 'rb') as f:
+            stats = pickle.load(f)
+
+        train_set = get_names(stats['dataset']['train'])
+        validation_set = get_names(stats['dataset']['valid'])
+        test_set = get_names(stats['dataset']['test'])
 
     name_to_confusion_matrix = {}
     for i, filename in enumerate(os.listdir(prediction_path)):
@@ -88,8 +127,9 @@ def get_avg_normalized_confusion_matrix(print_graph=False, split_train_validatio
         return avg_confusion_matrix
 
     if split_train_validation:
-        show_avg_cm([v for k, v in name_to_confusion_matrix.items() if k not in validation_set], prefix='Train Set - ')
+        show_avg_cm([v for k, v in name_to_confusion_matrix.items() if k in train_set], prefix='Train Set - ')
         show_avg_cm([v for k, v in name_to_confusion_matrix.items() if k in validation_set], prefix='Validation Set - ')
+        show_avg_cm([v for k, v in name_to_confusion_matrix.items() if k in test_set], prefix='Test Set - ')
     else:
         show_avg_cm(list(name_to_confusion_matrix.values()))
 
@@ -100,7 +140,9 @@ def change_pred_dir():
 
 
 def graph(y_values, y_label='', x_label='', show_graph=True, legend=None):
-    x = range(1, len(y_values) + 1)
+    # Note: this depends on the --validate-every cmd arg used in train, by default we set it to 10
+    #       but a more generic solution is required
+    x = range(10, 10*len(y_values) + 1, 10)
     plt.plot(x, y_values)
     plt.xlabel(x_label)
     plt.ylabel(y_label)
@@ -247,6 +289,26 @@ def create_dsc_graphs():
             print('Invalid command')
 
 
+def create_single_dsc_graph():
+    if prediction_path is None:
+        print('please set the path to prediction folder first.')
+        return
+
+    dsc = {}
+    for file_name in os.listdir(prediction_path):
+        background_dsc, bone_dsc, fat_dsc, tissue_dsc = get_dsc_from_json_file(file_name)
+        dsc[file_name] = {
+            'background': background_dsc,
+            'bone': bone_dsc,
+            'fat': fat_dsc,
+            'tissue': tissue_dsc
+        }
+    save_folder_path = input('Insert path to folder to save the graphs to.\n')
+    os.makedirs(save_folder_path, exist_ok=True)
+    dsc_dist_plot = plot_params_dist(dsc)
+    imsave(os.path.join(save_folder_path, 'dsc_all.png'), dsc_dist_plot)
+
+
 if __name__ == '__main__':
     while True:
         print_menu()
@@ -262,7 +324,9 @@ if __name__ == '__main__':
         elif input_op == '5':
             create_dsc_graphs()
         elif input_op == '6':
-            get_avg_normalized_confusion_matrix(print_graph=True, split_train_validation=False)
+            get_avg_normalized_confusion_matrix(print_graph=True, split_train_validation=True)
+        elif input_op == '7':
+            create_single_dsc_graph()
         elif input_op == 'q':
             exit()
         else:

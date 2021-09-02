@@ -6,11 +6,12 @@ import json
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 import matplotlib.pyplot as plt
 import pickle
+import utils
 # Relative importing
 import sys
 sys.path.append(os.getcwd())
 from inference import plot_param_dist
-from skimage.io import imsave
+from skimage.io import imsave, imread
 from bonemarrow_label import BoneMarrowLabel
 
 
@@ -26,6 +27,7 @@ def print_menu():
     print('5 - create dsc graphs')
     print('6 - show avg. confusion matrix')
     print('7 - create single dsc graph for predictions')
+    print('8 - create density error table for predictions')
     print('q - quit')
 
 
@@ -309,6 +311,38 @@ def create_single_dsc_graph():
     imsave(os.path.join(save_folder_path, 'dsc_all.png'), dsc_dist_plot)
 
 
+def get_image_label(image):
+    y_value = np.zeros(image.shape[:2])
+    y_value[image[:, :, 0] != 0] = BoneMarrowLabel.BONE
+    y_value[image[:, :, 1] != 0] = BoneMarrowLabel.FAT
+    y_value[image[:, :, 2] != 0] = BoneMarrowLabel.OTHER
+    return y_value
+
+
+def create_density_error_table():
+    global prediction_path
+    if prediction_path is None:
+        prediction_path = input('Insert path to prediction folder:\n')
+
+    density_errors = []
+    path_stats_file = input('Insert path to where to save the stats to.\n')
+
+    with open(path_stats_file, 'w+') as f:
+        for file_name in os.listdir(prediction_path):
+            output_dir = os.path.join(prediction_path, file_name)
+            y_pred = get_image_label(imread(os.path.join(output_dir, 'pred.png')))
+            y_true = get_image_label(imread(os.path.join(output_dir, 'true.png')))
+
+            density_error = utils.calculate_bonemarrow_density_error(y_pred, y_true)
+            f.write(f'{file_name},{density_error:.4f}\n')
+            density_errors.append(density_error)
+
+        density_errors.sort()
+        f.write(f'min,{density_errors[0]}\n')
+        f.write(f'max,{density_errors[-1]}\n')
+        f.write(f'mean,{sum(density_errors)/len(density_errors)}\n')
+
+
 if __name__ == '__main__':
     while True:
         print_menu()
@@ -327,6 +361,8 @@ if __name__ == '__main__':
             get_avg_normalized_confusion_matrix(print_graph=True, split_train_validation=True)
         elif input_op == '7':
             create_single_dsc_graph()
+        elif input_op == '8':
+            create_density_error_table()
         elif input_op == 'q':
             exit()
         else:

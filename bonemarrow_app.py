@@ -17,11 +17,10 @@ _lock = RendererAgg.lock
 
 # General Constants
 WEIGHTS_DIR = r'weights'
-# CR: (GB) change this
 MODEL_WEIGHTS = os.path.join(WEIGHTS_DIR, 'bms_model.pt')
 MODEL_WEIGHTS_DRIVE_ID = '1pxvMIhTVX6zHDH36bsyYnUt2srQpsxPd'
 DEFAULT_CROP_SIZE = 480
-DEFAULT_STEP_SIZE = 128
+DEFAULT_STEP_SIZE = 120
 
 
 # based on https://stackoverflow.com/questions/38511444/python-download-files-from-google-drive-using-url
@@ -142,7 +141,9 @@ def segment_image():
         labels = ['Bone Mass', 'Fat Mass', 'Other Tissue Mass']
         explode = [0.1, 0, 0]
         colors = ['#640000', '#006400', '#000064']
-        ax.pie(densities, labels=labels, autopct='%1.2f%%', startangle=90, explode=explode, colors=colors)
+        _, _, autotexts = ax.pie(densities, labels=labels, autopct='%1.2f%%', startangle=90, explode=explode, colors=colors)
+        for autotext in autotexts:
+            autotext.set_color('white')
         ax.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
 
         with columns[2]:

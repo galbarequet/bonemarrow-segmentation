@@ -53,7 +53,7 @@ streamlit run bonemarrow_app.py
 
 | raw image | bones mask | fat mask |
 |:-------:|:-------:|:-------:|
-|![raw](./assets/raw%201%20(1).png)|![bones](./assets/bones%201%20(1).png)|![fat](./assets/fat%201%20(1).png)|
+|![raw](./assets/raw%201.png)|![bones](./assets/bones%201.png)|![fat](./assets/fat%201.png)|
 
 Dataset used for development and evaluation was made privately by medical research team.
 
@@ -61,9 +61,9 @@ Dataset used for development and evaluation was made privately by medical resear
 ## Model
 
 #TODO: fix model
-A segmentation model implemented in this repository is U-Net as described in [Association of genomic subtypes of lower-grade gliomas with shape features automatically extracted by a deep learning algorithm](https://doi.org/10.1016/j.compbiomed.2019.05.002) with added batch normalization.
+The segmentation model is a combination of a modified U-Net and DeepLabV3.
 
-![unet](./assets/unet.png)
+![Model](./assets/model.png)
 
 ## Results
 

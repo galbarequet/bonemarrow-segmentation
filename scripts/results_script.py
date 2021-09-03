@@ -6,10 +6,10 @@ import json
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 import matplotlib.pyplot as plt
 import pickle
-import utils
 # Relative importing
 import sys
 sys.path.append(os.getcwd())
+import utils
 from inference import plot_param_dist
 from skimage.io import imsave, imread
 from bonemarrow_label import BoneMarrowLabel

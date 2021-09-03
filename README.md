@@ -60,7 +60,6 @@ Dataset used for development and evaluation was made privately by medical resear
 
 ## Model
 
-#TODO: fix model
 The segmentation model is a combination of a modified U-Net and DeepLabV3.
 
 ![Model](./assets/model.png)

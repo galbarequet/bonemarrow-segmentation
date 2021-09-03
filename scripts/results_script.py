@@ -319,15 +319,15 @@ def get_image_label(image):
     return y_value
 
 
-def create_density_error_table():
+def create_density_error_table_graph():
     global prediction_path
     if prediction_path is None:
         prediction_path = input('Insert path to prediction folder:\n')
 
-    density_errors = []
-    path_stats_file = input('Insert path to where to save the stats to.\n')
+    density_errors = {}
+    save_folder_path = input('Insert path to folder to save the table and graph.\n')
 
-    with open(path_stats_file, 'w+') as f:
+    with open(os.path.join(save_folder_path, 'density_error.csv'), 'w+') as f:
         for file_name in os.listdir(prediction_path):
             output_dir = os.path.join(prediction_path, file_name)
             y_pred = get_image_label(imread(os.path.join(output_dir, 'pred.png')))
@@ -335,12 +335,15 @@ def create_density_error_table():
 
             density_error = utils.calculate_bonemarrow_density_error(y_pred, y_true)
             f.write(f'{file_name},{density_error:.4f}\n')
-            density_errors.append(density_error)
+            density_errors[file_name] = density_error
 
-        density_errors.sort()
-        f.write(f'min,{density_errors[0]}\n')
-        f.write(f'max,{density_errors[-1]}\n')
-        f.write(f'mean,{sum(density_errors)/len(density_errors)}\n')
+        values = sorted(list(density_errors.values()))
+        f.write(f'min,{values[0]:.4f}\n')
+        f.write(f'max,{values[-1]:.4f}\n')
+        f.write(f'mean,{sum(values)/len(values):.4f}\n')
+    density_error_plot = plot_param_dist(density_errors, param_name='Bone Density Relative Error',
+                                         max_x_lim=1.01)
+    imsave(os.path.join(save_folder_path, 'density_error.png'), density_error_plot)
 
 
 if __name__ == '__main__':
@@ -362,7 +365,7 @@ if __name__ == '__main__':
         elif input_op == '7':
             create_single_dsc_graph()
         elif input_op == '8':
-            create_density_error_table()
+            create_density_error_table_graph()
         elif input_op == 'q':
             exit()
         else:

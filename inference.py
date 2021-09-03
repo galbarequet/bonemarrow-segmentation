@@ -169,7 +169,7 @@ def data_loader(args):
     return loader
 
 
-def plot_param_dist(dist, param_name="Dice coefficient"):
+def plot_param_dist(dist, param_name="Dice coefficient", max_x_lim=1.0):
     """
         Return the plot of the parameter distribution.
         Note: the parameter needs to get value from (0,1).
@@ -182,8 +182,8 @@ def plot_param_dist(dist, param_name="Dice coefficient"):
     canvas = FigureCanvasAgg(fig)
     plt.barh(y_positions, values, align="center", color="skyblue")
     plt.yticks(y_positions, labels)
-    plt.xticks(np.arange(0.0, 1.0, 0.1))
-    plt.xlim([0.0, 1.0])
+    plt.xticks(np.arange(0.0, max_x_lim, 0.1))
+    plt.xlim([0.0, max_x_lim])
     plt.gca().axvline(np.mean(values), color="tomato", linewidth=2)
     plt.gca().axvline(np.median(values), color="forestgreen", linewidth=2)
     plt.xlabel(param_name, fontsize="x-large")

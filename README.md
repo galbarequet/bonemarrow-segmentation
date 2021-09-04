@@ -1,4 +1,4 @@
-# Bone Marrow Segmentation Web App
+# Bone Marrow Segmentation
 
 Table of Contents :bookmark_tabs:
 =================
@@ -11,7 +11,10 @@ Table of Contents :bookmark_tabs:
 - [Code and Resources Used](#code-and-resources-used)
 
 ## Overview
-This repository contains code and model to run bone-marrow segmentation. More details will be available soon.
+This repository contains code and model to perform segmentation on bone marrow biopsy samples.
+Bone marrow segmentation (BMS) is relevant for medical research purposes.
+In particular, BMS is used for researching the corelation between the bone density in the biopsy and certain diseases.
+
 
 ## Installation
 - download and install conda for the relevant operating system:
@@ -60,27 +63,32 @@ Dataset used for development and evaluation was made privately by medical resear
 
 ## Model
 
-The segmentation model is a combination of a modified U-Net and DeepLabV3.
+The segmentation model implemented in this repository is an ensemble between:
+- modified U-Net as described in [Association of genomic subtypes of lower-grade gliomas with shape features automatically extracted by a deep learning algorithm](https://doi.org/10.1016/j.compbiomed.2019.05.002) with added batch normalization.
+- DeepLabv3 with a ResNet101 backbone - more details about the SOTA general semantic segmentation tool can be found in https://pytorch.org/hub/pytorch_vision_deeplabv3_resnet101.
 
 ![Model](./assets/model.png)
 
+
 ## Results
 
-#TODO: fix results
+Over one of the images from the test set the model prediction has 0.53% bone density relative error.
+Color meaning is Black for background, red for bone, green for fat, and blue for other tissues. 
 
-|![TCGA_DU_6404_19850629](./assets/TCGA_DU_6404_19850629.gif)|![TCGA_HT_7879_19981009](./assets/TCGA_HT_7879_19981009.gif)|![TCGA_CS_4944_20010208](./assets/TCGA_CS_4944_20010208.gif)|
-|:-------:|:-------:|:-------:|
-| 94% DSC | 91% DSC | 89% DSC |
+Raw image:
+![6 - raw](./assets/raw 6.png)
+Predicted segmentation for the image:
+![g - prediction](./assets/pred 6.png)
 
-Qualitative results for validation cases from three different institutions with DSC of 94%, 91%, and 89%.
-Green outlines correspond to ground truth and red to model predictions.
-Images show FLAIR modality after preprocessing. 
+The bone density relative error achieved is:
+![bone density relative error](./assets/density_error.png)
 
-![dsc](./assets/dsc.png)
+Distribution of background/bone/fat/other tissue DSC for 7 randomly selected test cases:
+![dsc](./assets/dsc_test.png)
 
-Distribution of DSC for 10 randomly selected validation cases.
-The red vertical line corresponds to mean DSC (91%) and the green one to median DSC (92%).
-Results may be biased since model selection was based on the mean DSC on these validation cases.
+The test set consists of 10% of the entire dataset and independent of the training and validation set.
+Thus, the results are likely to be unbiased since model selection was based on the minimal bone density relative error for the validation set.
+
 
 ## Steps to Use the Application
 

@@ -76,9 +76,9 @@ Over one of the images from the test set the model prediction has 0.53% bone den
 Color meaning is Black for background, red for bone, green for fat, and blue for other tissues. 
 
 Raw image:
-![6 - raw](./assets/raw 6.png)
+![6 - raw](./assets/raw%206.png)
 Predicted segmentation for the image:
-![g - prediction](./assets/pred 6.png)
+![g - prediction](./assets/pred%206.png)
 
 The bone density relative error achieved is:
 ![bone density relative error](./assets/density_error.png)

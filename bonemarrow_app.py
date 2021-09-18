@@ -18,7 +18,7 @@ _lock = RendererAgg.lock
 # General Constants
 WEIGHTS_DIR = r'weights'
 MODEL_WEIGHTS = os.path.join(WEIGHTS_DIR, 'bms_model.pt')
-MODEL_WEIGHTS_DRIVE_ID = '1pxvMIhTVX6zHDH36bsyYnUt2srQpsxPd'
+MODEL_WEIGHTS_DRIVE_ID = '1XVkSpPh25Fuxf0967FIbbwZkVgVAtvlt'
 DEFAULT_CROP_SIZE = 480
 DEFAULT_STEP_SIZE = 120
 

@@ -90,7 +90,7 @@ def use_progress(model, progress_handler):
 
 
 def segment_image():
-    columns = st.beta_columns(2)
+    columns = st.columns(2)
     with columns[1]:
         st.markdown('<br>', unsafe_allow_html=True)
         st.info('**PRIVACY POLICY**: uploaded images are never saved or stored. They are held entirely '
@@ -117,7 +117,7 @@ def segment_image():
         progress_text.text(display_progress)
         bar.progress(percentage)
 
-    columns = st.beta_columns(3)
+    columns = st.columns(3)
 
     columns[0].image(image, caption="Selected Input", output_format='PNG')
 

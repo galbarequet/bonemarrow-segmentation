@@ -7,7 +7,7 @@ Pillow==6.2.0
 scipy==1.6.3
 pandas==0.24.2
 tqdm==4.32.1
-streamlit==0.85.0
+streamlit>=1.9.0
 events==0.4
 torch==1.9.0
 matplotlib==3.3.4

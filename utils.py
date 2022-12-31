@@ -1,4 +1,5 @@
 from bonemarrow_label import BoneMarrowLabel
+import matplotlib.pyplot as plt
 import numpy as np
 
 
@@ -44,3 +45,23 @@ def create_error_image(pred, true, category):
 
     return error.astype(np.uint8)
 
+
+def create_density_figure(prediction):
+    labels_values = [BoneMarrowLabel.BONE, BoneMarrowLabel.FAT, BoneMarrowLabel.OTHER]
+    densities = [100 * calculate_density(prediction, label) for label in labels_values]
+
+    fig, ax = plt.subplots()
+    labels = ['Bone Mass', 'Fat Mass', 'Other Tissue Mass']
+    explode = [0.1, 0, 0]
+    colors = ['#640000', '#006400', '#000064']
+    _, _, autotexts = ax.pie(densities, labels=labels, autopct='%1.2f%%', startangle=90, explode=explode, colors=colors)
+    for autotext in autotexts:
+        autotext.set_color('white')
+    ax.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+
+    densities_mapping = {
+        label: density
+        for label, density in zip(labels, densities)
+    }
+
+    return fig, ax, densities_mapping

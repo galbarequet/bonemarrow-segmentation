@@ -1,47 +1,23 @@
-from bonemarrow_label import BoneMarrowLabel
+
 import contextlib
-import base64
-import io
-import imageio
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_agg import RendererAgg
-import model_runner
-import numpy as np
 import os
 import pathlib
-from PIL import Image
-import requests
 import streamlit as st
+from matplotlib.backends.backend_agg import RendererAgg
+import numpy as np
+from PIL import Image
+
+import config
+import model_runner
+import network_utils
 import utils
+
+
 _lock = RendererAgg.lock
 
 # General Constants
 WEIGHTS_DIR = r'weights'
 MODEL_WEIGHTS = os.path.join(WEIGHTS_DIR, 'bms_model.pt')
-MODEL_WEIGHTS_DRIVE_ID = '1XVkSpPh25Fuxf0967FIbbwZkVgVAtvlt'
-DEFAULT_CROP_SIZE = 480
-DEFAULT_STEP_SIZE = 120
-
-
-# based on https://stackoverflow.com/questions/38511444/python-download-files-from-google-drive-using-url
-def download_file_from_google_drive(file_id, destination):
-    google_url = "https://docs.google.com/uc?export=download"
-
-    session = requests.Session()
-    params = {'id': file_id, 'confirm': 't'}
-    response = session.get(google_url, params=params, stream=True)
-
-    save_response_content(response, destination)
-
-
-
-def save_response_content(response, destination):
-    chunk_size = 32768
-
-    with open(destination, "wb") as f:
-        for chunk in response.iter_content(chunk_size):
-            if chunk:  # filter out keep-alive new chunks
-                f.write(chunk)
 
 
 @st.cache(allow_output_mutation=True)
@@ -53,19 +29,14 @@ def load_model():
     if not weights_path.exists():
         with st.spinner("Downloading model weights... this may take a few minutes."
                         " (~260 MB) Please don't interrupt it."):
-            download_file_from_google_drive(MODEL_WEIGHTS_DRIVE_ID, MODEL_WEIGHTS)
+            network_utils.download_file_from_google_drive(config.MODEL_WEIGHTS_DRIVE_ID, MODEL_WEIGHTS)
 
-    model = model_runner.ModelRunner(weights_path=MODEL_WEIGHTS, crop_size=DEFAULT_CROP_SIZE,
-                                     step_size=DEFAULT_STEP_SIZE)
+    model = model_runner.ModelRunner(
+        weights_path=MODEL_WEIGHTS,
+        crop_size=config.DEFAULT_CROP_SIZE,
+        step_size=config.DEFAULT_STEP_SIZE
+    )
     return model
-
-
-# Note: based on https://discuss.streamlit.io/t/how-to-download-image/3358/2
-def get_image_download_link(image, filename, text):
-    buffered = io.BytesIO()
-    imageio.imwrite(buffered, image, format='png')
-    img_str = base64.b64encode(buffered.getvalue()).decode()
-    return f'<a href="data:file/txt;base64,{img_str}" download="{filename}">{text}</a>'
 
 
 @contextlib.contextmanager
@@ -117,23 +88,14 @@ def segment_image():
         _progress_handler(100)
 
     columns[1].image(segmented_image, caption="Predicted Segmentation", output_format='PNG')
-    st.markdown(get_image_download_link(segmented_image, 'output.png', 'Download segmented image!'),
-                unsafe_allow_html=True)
+    st.markdown(
+        network_utils.get_image_download_link(segmented_image, 'output.png', 'Download segmented image!'),
+        unsafe_allow_html=True
+    )
 
     # Note: display density of different tissues in the segmented pixels
-    labels_values = [BoneMarrowLabel.BONE, BoneMarrowLabel.FAT, BoneMarrowLabel.OTHER]
-    densities = [100 * utils.calculate_density(prediction, label) for label in labels_values]
-
     with _lock:
-        fig, ax = plt.subplots()
-        labels = ['Bone Mass', 'Fat Mass', 'Other Tissue Mass']
-        explode = [0.1, 0, 0]
-        colors = ['#640000', '#006400', '#000064']
-        _, _, autotexts = ax.pie(densities, labels=labels, autopct='%1.2f%%', startangle=90, explode=explode, colors=colors)
-        for autotext in autotexts:
-            autotext.set_color('white')
-        ax.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
-
+        fig, ax = utils.create_density_figure(prediction)
         with columns[2]:
             st.subheader('Bone Marrow Density From Total Mass:')
             st.pyplot(fig)
